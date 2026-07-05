@@ -1,0 +1,242 @@
+{
+  "_readme": "Not used at runtime in this repo's remote-connector/pm2 deployment (see README.md). Kept as reference material for a possible future Desktop Extension (.mcpb) local-install packaging.",
+  "manifest_version": "0.3",
+  "name": "mcp-cowork",
+  "display_name": "Cowork MCP Server",
+  "version": "1.0.0",
+  "description": "MCP server exposing a broad integration toolbox (GitHub, Google, Microsoft 365, OVH, o2switch, Steam, WhatsApp, transit, school, Synology NAS) plus a Qdrant-backed long-term memory interface.",
+  "long_description": "General-purpose MCP tool server, adaptable to any assistant identity. Includes WhatsApp tools via a shared external PM2 daemon (whatsapp-daemon on the reference deployment). Requires a reachable Qdrant instance (local or remote) for persistent memory.",
+  "author": { "name": "Simon Savoca" },
+  "license": "UNLICENSED",
+  "keywords": ["mcp", "assistant", "memory", "qdrant", "github", "google", "microsoft365", "ovh", "o2switch", "steam", "whatsapp", "pronote", "synology"],
+  "server": {
+    "type": "node",
+    "entry_point": "index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/index.js"],
+      "env": {
+        "QDRANT_HOST": "${user_config.qdrant_host}",
+        "QDRANT_PORT": "${user_config.qdrant_port}",
+        "PYTHON_CMD": "${user_config.python_cmd}",
+        "GITHUB_DEFAULT_OWNER": "${user_config.github_default_owner}",
+        "GITHUB_PERSO_TOKEN": "${user_config.github_perso_token}",
+        "M365_TENANT_ID": "${user_config.m365_tenant_id}",
+        "M365_CLIENT_ID": "${user_config.m365_client_id}",
+        "M365_CLIENT_SECRET": "${user_config.m365_client_secret}",
+        "OVH_MAIN_APP_KEY": "${user_config.ovh_app_key}",
+        "OVH_MAIN_APP_SECRET": "${user_config.ovh_app_secret}",
+        "OVH_MAIN_CONSUMER_KEY": "${user_config.ovh_consumer_key}",
+        "O2SWITCH_HOST": "${user_config.o2switch_host}",
+        "O2SWITCH_API_USER": "${user_config.o2switch_api_user}",
+        "O2SWITCH_API_TOKEN": "${user_config.o2switch_api_token}",
+        "STEAM_API_KEY": "${user_config.steam_api_key}",
+        "STEAM_ID": "${user_config.steam_id}",
+        "GOOGLE_CLIENT_ID": "${user_config.google_client_id}",
+        "GOOGLE_CLIENT_SECRET": "${user_config.google_client_secret}",
+        "GOOGLE_REFRESH_TOKEN": "${user_config.google_refresh_token}",
+        "NEO_ENT_URL": "${user_config.neo_ent_url}",
+        "EDUCONNECT_LOGIN": "${user_config.educonnect_login}",
+        "EDUCONNECT_PASSWORD": "${user_config.educonnect_password}",
+        "PRONOTE_QR_PIN": "${user_config.pronote_qr_pin}",
+        "PRIM_API_KEY": "${user_config.prim_api_key}",
+        "SYNOLOGY_NAS_HOST": "${user_config.synology_nas_host}",
+        "SYNOLOGY_NAS_PORT": "${user_config.synology_nas_port}",
+        "SYNOLOGY_NAS_USER": "${user_config.synology_nas_user}",
+        "SYNOLOGY_NAS_PASSWORD": "${user_config.synology_nas_password}"
+      }
+    }
+  },
+  "tools_generated": true,
+  "compatibility": {
+    "platforms": ["win32", "darwin", "linux"],
+    "runtimes": { "node": ">=18.0.0" }
+  },
+  "user_config": {
+    "qdrant_host": {
+      "type": "string",
+      "title": "Qdrant — Host",
+      "description": "Adresse du serveur Qdrant (mémoire persistante)",
+      "default": "localhost",
+      "required": false
+    },
+    "qdrant_port": {
+      "type": "string",
+      "title": "Qdrant — Port",
+      "description": "Port du serveur Qdrant",
+      "default": "6333",
+      "required": false
+    },
+    "python_cmd": {
+      "type": "string",
+      "title": "Python — Commande",
+      "description": "Commande Python utilisée uniquement par les tools Pronote (nécessite pronotepy installé)",
+      "default": "python",
+      "required": false
+    },
+    "github_default_owner": {
+      "type": "string",
+      "title": "GitHub — Owner par défaut",
+      "description": "Owner GitHub utilisé par défaut quand non précisé dans un appel d'outil",
+      "required": false
+    },
+    "github_perso_token": {
+      "type": "string",
+      "title": "GitHub — Token personnel",
+      "description": "Personal Access Token GitHub",
+      "sensitive": true,
+      "required": false
+    },
+    "m365_tenant_id": {
+      "type": "string",
+      "title": "Microsoft 365 — Tenant ID",
+      "description": "ID du tenant Azure AD pour l'app Microsoft Graph (flux client-credentials)",
+      "required": false
+    },
+    "m365_client_id": {
+      "type": "string",
+      "title": "Microsoft 365 — Client ID",
+      "description": "Client ID de l'app Microsoft Graph",
+      "required": false
+    },
+    "m365_client_secret": {
+      "type": "string",
+      "title": "Microsoft 365 — Client Secret",
+      "description": "Client Secret de l'app Microsoft Graph",
+      "sensitive": true,
+      "required": false
+    },
+    "ovh_app_key": {
+      "type": "string",
+      "title": "OVH — App Key",
+      "description": "Application Key de l'API OVH",
+      "required": false
+    },
+    "ovh_app_secret": {
+      "type": "string",
+      "title": "OVH — App Secret",
+      "description": "Application Secret de l'API OVH",
+      "sensitive": true,
+      "required": false
+    },
+    "ovh_consumer_key": {
+      "type": "string",
+      "title": "OVH — Consumer Key",
+      "description": "Consumer Key de l'API OVH",
+      "sensitive": true,
+      "required": false
+    },
+    "o2switch_host": {
+      "type": "string",
+      "title": "o2switch — Hôte cPanel",
+      "description": "Nom d'hôte du serveur cPanel o2switch (sans port)",
+      "required": false
+    },
+    "o2switch_api_user": {
+      "type": "string",
+      "title": "o2switch — Utilisateur cPanel",
+      "description": "Utilisateur du compte cPanel o2switch",
+      "required": false
+    },
+    "o2switch_api_token": {
+      "type": "string",
+      "title": "o2switch — Jeton API cPanel",
+      "description": "Jeton API généré dans cPanel (Sécurité → Gérer les jetons API)",
+      "sensitive": true,
+      "required": false
+    },
+    "steam_api_key": {
+      "type": "string",
+      "title": "Steam — API Key",
+      "description": "Clé API Steam Web API",
+      "sensitive": true,
+      "required": false
+    },
+    "steam_id": {
+      "type": "string",
+      "title": "Steam — SteamID64",
+      "description": "Identifiant Steam (SteamID64) du profil à interroger",
+      "required": false
+    },
+    "google_client_id": {
+      "type": "string",
+      "title": "Google — Client ID",
+      "description": "Client ID OAuth2 Google (Gmail, Calendar, Contacts)",
+      "required": false
+    },
+    "google_client_secret": {
+      "type": "string",
+      "title": "Google — Client Secret",
+      "description": "Client Secret OAuth2 Google",
+      "sensitive": true,
+      "required": false
+    },
+    "google_refresh_token": {
+      "type": "string",
+      "title": "Google — Refresh Token",
+      "description": "Refresh token OAuth2 Google (obtenu via google_auth_url / google_auth_callback)",
+      "sensitive": true,
+      "required": false
+    },
+    "neo_ent_url": {
+      "type": "string",
+      "title": "NEO/ENT — URL",
+      "description": "URL de l'ENT scolaire (portail NEO)",
+      "default": "https://ent.ecollege78.fr",
+      "required": false
+    },
+    "educonnect_login": {
+      "type": "string",
+      "title": "EduConnect — Identifiant",
+      "description": "Identifiant EduConnect, partagé entre NEO et Pronote",
+      "required": false
+    },
+    "educonnect_password": {
+      "type": "string",
+      "title": "EduConnect — Mot de passe",
+      "description": "Mot de passe EduConnect, partagé entre NEO et Pronote",
+      "sensitive": true,
+      "required": false
+    },
+    "pronote_qr_pin": {
+      "type": "string",
+      "title": "Pronote — PIN QR code",
+      "description": "PIN utilisé pour l'authentification Pronote par QR code",
+      "sensitive": true,
+      "required": false
+    },
+    "prim_api_key": {
+      "type": "string",
+      "title": "PRIM/IDFM — API Key",
+      "description": "Clé API PRIM (Île-de-France Mobilités) pour les infos transport",
+      "sensitive": true,
+      "required": false
+    },
+    "synology_nas_host": {
+      "type": "string",
+      "title": "Synology — Hôte NAS",
+      "description": "Adresse IP ou nom d'hôte du NAS Synology",
+      "required": false
+    },
+    "synology_nas_port": {
+      "type": "string",
+      "title": "Synology — Port",
+      "description": "Port HTTPS DSM du NAS",
+      "default": "5001",
+      "required": false
+    },
+    "synology_nas_user": {
+      "type": "string",
+      "title": "Synology — Utilisateur",
+      "description": "Compte DSM utilisé pour l'authentification",
+      "required": false
+    },
+    "synology_nas_password": {
+      "type": "string",
+      "title": "Synology — Mot de passe",
+      "description": "Mot de passe du compte DSM",
+      "sensitive": true,
+      "required": false
+    }
+  }
+}
