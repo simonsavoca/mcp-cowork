@@ -387,6 +387,113 @@ function registerGoogleTools(server) {
       return ok(events);
     }
   );
+
+  function buildEventTime(value, timezone = 'Europe/Paris') {
+    if (!value) return null;
+    if (value.includes('T')) {
+      return { dateTime: value, timeZone: timezone };
+    } else {
+      return { date: value };
+    }
+  }
+
+  server.tool(
+    'google_calendar_event_create',
+    'Crée un événement sur un calendrier Google',
+    {
+      calendar_id: z.string().optional().default('primary').describe('ID du calendrier (défaut: primary)'),
+      summary: z.string().describe('Titre de l\'événement'),
+      start: z.string().describe('Heure de début (format ISO datetime "2025-07-07T14:00:00" ou date "2025-07-07" pour journée entière)'),
+      end: z.string().describe('Heure de fin (même format que start)'),
+      description: z.string().optional().describe('Description de l\'événement'),
+      location: z.string().optional().describe('Lieu de l\'événement'),
+      attendees: z.array(z.string().email()).optional().describe('Adresses email des participants'),
+      timezone: z.string().optional().default('Europe/Paris').describe('Fuseau horaire (défaut: Europe/Paris)'),
+    },
+    async ({ calendar_id = 'primary', summary, start, end, description, location, attendees, timezone = 'Europe/Paris' }) => {
+      const body = {
+        summary,
+        start: buildEventTime(start, timezone),
+        end: buildEventTime(end, timezone),
+      };
+
+      if (description) body.description = description;
+      if (location) body.location = location;
+      if (attendees && attendees.length > 0) {
+        body.attendees = attendees.map(email => ({ email }));
+      }
+
+      const result = await gapi(`${CALENDAR_API}/calendars/${encodeURIComponent(calendar_id)}/events`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+
+      return ok({
+        id: result.id,
+        summary: result.summary,
+        start: result.start?.dateTime ?? result.start?.date,
+        end: result.end?.dateTime ?? result.end?.date,
+        htmlLink: result.htmlLink,
+      });
+    }
+  );
+
+  server.tool(
+    'google_calendar_event_update',
+    'Modifie un événement sur un calendrier Google',
+    {
+      calendar_id: z.string().optional().default('primary').describe('ID du calendrier (défaut: primary)'),
+      event_id: z.string().describe('ID de l\'événement à modifier'),
+      summary: z.string().optional().describe('Nouveau titre'),
+      start: z.string().optional().describe('Nouvelle heure de début (format ISO datetime ou date)'),
+      end: z.string().optional().describe('Nouvelle heure de fin (format ISO datetime ou date)'),
+      description: z.string().optional().describe('Nouvelle description'),
+      location: z.string().optional().describe('Nouveau lieu'),
+      attendees: z.array(z.string().email()).optional().describe('Nouvelles adresses email des participants'),
+      timezone: z.string().optional().default('Europe/Paris').describe('Fuseau horaire (défaut: Europe/Paris)'),
+    },
+    async ({ calendar_id = 'primary', event_id, summary, start, end, description, location, attendees, timezone = 'Europe/Paris' }) => {
+      const body = {};
+
+      if (summary !== undefined) body.summary = summary;
+      if (start !== undefined) body.start = buildEventTime(start, timezone);
+      if (end !== undefined) body.end = buildEventTime(end, timezone);
+      if (description !== undefined) body.description = description;
+      if (location !== undefined) body.location = location;
+      if (attendees !== undefined) {
+        body.attendees = attendees && attendees.length > 0 ? attendees.map(email => ({ email })) : [];
+      }
+
+      const result = await gapi(`${CALENDAR_API}/calendars/${encodeURIComponent(calendar_id)}/events/${encodeURIComponent(event_id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      });
+
+      return ok({
+        id: result.id,
+        summary: result.summary,
+        start: result.start?.dateTime ?? result.start?.date,
+        end: result.end?.dateTime ?? result.end?.date,
+        htmlLink: result.htmlLink,
+      });
+    }
+  );
+
+  server.tool(
+    'google_calendar_event_delete',
+    'Supprime un événement d\'un calendrier Google',
+    {
+      calendar_id: z.string().optional().default('primary').describe('ID du calendrier (défaut: primary)'),
+      event_id: z.string().describe('ID de l\'événement à supprimer'),
+    },
+    async ({ calendar_id = 'primary', event_id }) => {
+      await gapi(`${CALENDAR_API}/calendars/${encodeURIComponent(calendar_id)}/events/${encodeURIComponent(event_id)}`, {
+        method: 'DELETE',
+      });
+
+      return ok({ deleted: true, event_id });
+    }
+  );
 }
 
 module.exports = { registerGoogleTools };
