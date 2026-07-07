@@ -31,7 +31,9 @@ Les tools WhatsApp appellent un daemon externe séparé (`whatsapp-daemon` sur l
 
 ### ⚠️ État en mémoire (important après un restart)
 
-Le provider OAuth (`modules/oauth.js`) et les sessions `authGate` sont **entièrement en mémoire** — un redémarrage du process invalide tous les tokens émis et toutes les sessions gate. Chaque client déjà connecté (Claude Desktop/Claude.ai) devra refaire l'authentification OAuth et repasser la passphrase après un restart ou une bascule. C'est un effet de bord attendu, pas un bug.
+Le provider OAuth (`modules/oauth.js`) reste **entièrement en mémoire** — un redémarrage du process invalide tous les tokens OAuth émis, et chaque client déjà connecté (Claude Desktop/Claude.ai) devra refaire l'authentification OAuth après un restart ou une bascule. C'est un effet de bord attendu, pas un bug.
+
+Les sessions `authGate` (issues d'une passphrase validée), elles, sont persistées dans `data/gate_sessions.json` (même mécanisme que `data/google_token.json` pour Google) : un redémarrage du process ne redemande donc plus la passphrase tant que le cookie `francis_gate` (30 jours) est encore valide.
 
 ## Installation
 

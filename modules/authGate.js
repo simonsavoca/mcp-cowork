@@ -1,5 +1,7 @@
 const crypto = require("crypto");
 const express = require("express");
+const fs = require("fs");
+const path = require("path");
 
 // Gate placé devant /authorize (avant mcpAuthRouter) : oauth.js auto-approuve
 // tout ce qui atteint provider.authorize() (voir son commentaire), donc c'est
@@ -11,6 +13,35 @@ const COOKIE_NAME = "francis_gate";
 const COOKIE_MAX_AGE_S = 30 * 24 * 60 * 60; // 30 jours
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000;
+
+// Les sessions issues d'une passphrase validée sont persistées sur disque (mêmes
+// garanties d'accès que data/google_token.json) : sans ça, le cookie francis_gate
+// (valide 30 jours côté navigateur) ne correspondrait plus à rien côté serveur dès
+// le premier redémarrage du process, et la passphrase serait redemandée pour rien.
+const SESSIONS_STORE_PATH = path.join(__dirname, "..", "data", "gate_sessions.json");
+
+function loadSessions() {
+  const sessions = new Map(); // token -> expiresAtMs
+  try {
+    const stored = JSON.parse(fs.readFileSync(SESSIONS_STORE_PATH, "utf8"));
+    const now = Date.now();
+    for (const [token, expiresAt] of Object.entries(stored)) {
+      if (typeof expiresAt === "number" && expiresAt > now) sessions.set(token, expiresAt);
+    }
+  } catch {
+    // Pas de fichier, ou contenu invalide -> on démarre à vide.
+  }
+  return sessions;
+}
+
+function persistSessions(sessions) {
+  try {
+    fs.mkdirSync(path.dirname(SESSIONS_STORE_PATH), { recursive: true });
+    fs.writeFileSync(SESSIONS_STORE_PATH, JSON.stringify(Object.fromEntries(sessions), null, 2));
+  } catch (e) {
+    process.stderr.write(`[authGate] Impossible de persister les sessions: ${e.message}\n`);
+  }
+}
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({
@@ -78,7 +109,7 @@ function authGate({ passphrase }) {
     throw new Error("authGate: passphrase manquante (MCP_GATE_PASSPHRASE)");
   }
   const expectedHash = crypto.createHash("sha256").update(passphrase).digest();
-  const sessions = new Set(); // tokens de session valides (mêmes garanties que les Map en mémoire d'oauth.js)
+  const sessions = loadSessions(); // token -> expiresAtMs, persisté dans data/gate_sessions.json
   const attempts = new Map(); // ip -> { count, lockedUntil }
 
   function isLocked(ip) {
@@ -103,7 +134,14 @@ function authGate({ passphrase }) {
 
   router.all("/", (req, res, next) => {
     const cookies = parseCookies(req);
-    const hasValidSession = !!(cookies[COOKIE_NAME] && sessions.has(cookies[COOKIE_NAME]));
+    const cookieToken = cookies[COOKIE_NAME];
+    const sessionExpiresAt = cookieToken ? sessions.get(cookieToken) : undefined;
+    const hasValidSession = !!(sessionExpiresAt && sessionExpiresAt > Date.now());
+
+    if (cookieToken && sessionExpiresAt && !hasValidSession) {
+      sessions.delete(cookieToken); // expirée -> nettoyage
+      persistSessions(sessions);
+    }
 
     if (req.method === "GET") {
       return res.status(200).type("html").send(renderPage({ fields: req.query, showPassphrase: !hasValidSession }));
@@ -136,7 +174,8 @@ function authGate({ passphrase }) {
 
       recordSuccess(ip);
       const token = crypto.randomBytes(32).toString("hex");
-      sessions.add(token);
+      sessions.set(token, Date.now() + COOKIE_MAX_AGE_S * 1000);
+      persistSessions(sessions);
       res.setHeader("Set-Cookie", `${COOKIE_NAME}=${token}; HttpOnly; Secure; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE_S}; Path=/`);
       process.stderr.write(`[authGate] Passphrase validée, nouvelle session — client_id=${req.body.client_id}\n`);
       return next();
