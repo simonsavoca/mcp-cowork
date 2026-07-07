@@ -20,6 +20,7 @@ const { registerOsrmTools }     = require("./modules/osrm");
 const { registerPrimTools }     = require("./modules/prim");
 const { registerSynologyTools } = require("./modules/synology");
 const { registerPushoverTools } = require("./modules/pushover");
+const { registerNtfyTools }     = require("./modules/ntfy");
 
 const PUBLIC_URL = process.env.MCP_PUBLIC_URL;
 if (!PUBLIC_URL) {
@@ -65,6 +66,7 @@ function createServer() {
   registerPrimTools(server);
   registerSynologyTools(server);
   registerPushoverTools(server);
+  registerNtfyTools(server);
 
   return server;
 }

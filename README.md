@@ -1,6 +1,6 @@
 # mcp-cowork
 
-Serveur MCP (Model Context Protocol) exposé en HTTP distant, protégé par OAuth, conçu pour être ajouté comme connecteur dans Claude Desktop ou Claude.ai ("Cowork"). Il expose une large boîte à outils d'intégrations (GitHub, Microsoft 365, Google, OVH, o2switch, Steam, WhatsApp, transport, école, NAS Synology, notifications Pushover).
+Serveur MCP (Model Context Protocol) exposé en HTTP distant, protégé par OAuth, conçu pour être ajouté comme connecteur dans Claude Desktop ou Claude.ai ("Cowork"). Il expose une large boîte à outils d'intégrations (GitHub, Microsoft 365, Google, OVH, o2switch, Steam, WhatsApp, transport, école, NAS Synology, notifications Pushover/ntfy).
 
 ## Sommaire des tools
 
@@ -19,6 +19,7 @@ Serveur MCP (Model Context Protocol) exposé en HTTP distant, protégé par OAut
 | Synology NAS | `synology_discover`, `synology_auth`, `synology_system_info`, `synology_system_utilization`, `synology_storage_status` |
 | OSRM (itinéraires) | `osrm_geocode`, `osrm_directions` |
 | Pushover (notifications) | `pushover_auth`, `pushover_send` |
+| ntfy (notifications) | `ntfy_auth`, `ntfy_send`, `ntfy_poll` |
 
 Les tools WhatsApp appellent un daemon externe séparé (`whatsapp-daemon` sur le déploiement de référence, tournant sous pm2 sur la même machine) — ce repo ne le démarre pas, il s'y connecte seulement via `modules/whatsapp.js`.
 
@@ -61,6 +62,7 @@ pm2 start ecosystem.config.js
 | `PRIM_API_KEY` | API PRIM/IDFM transport | non |
 | `SYNOLOGY_NAS_HOST`, `SYNOLOGY_NAS_PORT`, `SYNOLOGY_NAS_USER`, `SYNOLOGY_NAS_PASSWORD` | NAS Synology DSM | non |
 | `PUSHOVER_APP_TOKEN`, `PUSHOVER_USER_KEY` | Notifications push Pushover.net | non |
+| `NTFY_SERVER`, `NTFY_TOPIC`, `NTFY_TOKEN`, `NTFY_USERNAME`, `NTFY_PASSWORD` | Notifications ntfy (ntfy.sh ou auto-hébergé ; `NTFY_TOKEN` ou `NTFY_USERNAME`/`NTFY_PASSWORD` uniquement pour un topic protégé) | non |
 
 Toutes les intégrations sont optionnelles — sans leurs variables, les tools correspondants renvoient une erreur explicite au lieu de planter le serveur.
 
