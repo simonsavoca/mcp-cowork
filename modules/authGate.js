@@ -59,7 +59,7 @@ function parseCookies(req) {
   }));
 }
 
-function renderPage({ fields, showPassphrase, error }) {
+function renderPage({ fields, showPassphrase, error, returnPath }) {
   const hidden = Object.entries(fields)
     .filter(([k]) => k !== "passphrase")
     .map(([k, v]) => `<input type="hidden" name="${escapeHtml(k)}" value="${escapeHtml(String(v))}">`)
@@ -77,6 +77,7 @@ function renderPage({ fields, showPassphrase, error }) {
     ? `<label>Passphrase<br><input type="password" name="passphrase" autofocus required></label><br><br>`
     : "";
   const buttonLabel = showPassphrase ? "Se connecter et autoriser" : "Autoriser";
+  const action = returnPath ? escapeHtml(returnPath) : "/authorize";
 
   return `<!DOCTYPE html>
 <html lang="fr"><head><meta charset="UTF-8"><title>Francis — Autorisation</title>
@@ -95,7 +96,7 @@ function renderPage({ fields, showPassphrase, error }) {
     <h1>Autoriser l'accès</h1>
     <p>Client : <strong>${clientId}</strong><br>Redirection vers : <strong>${redirectHost}</strong></p>
     ${errorHtml}
-    <form method="post" action="/authorize">
+    <form method="post" action="${action}">
       ${hidden}
       ${passphraseField}
       <button type="submit">${buttonLabel}</button>
@@ -137,6 +138,9 @@ function authGate({ passphrase }) {
     const cookieToken = cookies[COOKIE_NAME];
     const sessionExpiresAt = cookieToken ? sessions.get(cookieToken) : undefined;
     const hasValidSession = !!(sessionExpiresAt && sessionExpiresAt > Date.now());
+    // Retourner vers la route originale (ex. /status ou /authorize)
+    const url = new URL(req.originalUrl, "http://localhost");
+    const returnPath = url.pathname !== "/" ? url.pathname : undefined;
 
     if (cookieToken && sessionExpiresAt && !hasValidSession) {
       sessions.delete(cookieToken); // expirée -> nettoyage
@@ -144,7 +148,8 @@ function authGate({ passphrase }) {
     }
 
     if (req.method === "GET") {
-      return res.status(200).type("html").send(renderPage({ fields: req.query, showPassphrase: !hasValidSession }));
+      if (hasValidSession) return next();
+      return res.status(200).type("html").send(renderPage({ fields: req.query, showPassphrase: true, returnPath }));
     }
 
     if (req.method === "POST") {
@@ -156,7 +161,7 @@ function authGate({ passphrase }) {
       const ip = req.ip;
       if (isLocked(ip)) {
         return res.status(429).type("html").send(renderPage({
-          fields: req.body, showPassphrase: true,
+          fields: req.body, showPassphrase: true, returnPath,
           error: "Trop de tentatives — réessaie dans quelques minutes.",
         }));
       }
@@ -168,7 +173,7 @@ function authGate({ passphrase }) {
       if (!match) {
         recordFailure(ip);
         return res.status(401).type("html").send(renderPage({
-          fields: req.body, showPassphrase: true, error: "Passphrase incorrecte.",
+          fields: req.body, showPassphrase: true, returnPath, error: "Passphrase incorrecte.",
         }));
       }
 
@@ -176,7 +181,9 @@ function authGate({ passphrase }) {
       const token = crypto.randomBytes(32).toString("hex");
       sessions.set(token, Date.now() + COOKIE_MAX_AGE_S * 1000);
       persistSessions(sessions);
-      res.setHeader("Set-Cookie", `${COOKIE_NAME}=${token}; HttpOnly; Secure; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE_S}; Path=/`);
+      const isLocalhost = req.hostname === "localhost" || req.hostname === "127.0.0.1";
+      const secure = isLocalhost ? "" : "; Secure";
+      res.setHeader("Set-Cookie", `${COOKIE_NAME}=${token}; HttpOnly${secure}; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE_S}; Path=/`);
       process.stderr.write(`[authGate] Passphrase validée, nouvelle session — client_id=${req.body.client_id}\n`);
       return next();
     }

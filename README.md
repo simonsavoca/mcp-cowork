@@ -79,6 +79,18 @@ pm2 save   # à faire après tout changement pour persister au reboot
 
 Changer `MCP_PUBLIC_URL` (ex : nouvelle URL de tunnel) impose un `pm2 restart` et de reconfigurer le connecteur côté client (nouvel issuer OAuth).
 
+## Page de statut
+
+Une page de diagnostic web est disponible à l'adresse `/status` (protégée par la même passphrase que `/authorize`). Elle affiche en temps réel :
+
+- **Serveur** : version, uptime, heure de démarrage, port, URL publique
+- **Sessions MCP** : nombre de sessions Streamable HTTP actives (clients connectés via Claude Desktop/Claude.ai)
+- **OAuth** : nombre de clients enregistrés, d'access tokens et de refresh tokens en mémoire (rappel : état perdu au restart)
+- **authGate** : nombre de sessions passphrase validées persistées sur disque
+- **Modules & Outils** : liste des 14 modules avec statut configuré/non-configuré selon les variables d'environnement présentes
+
+La page est en **lecture seule** — aucune action déclenchable. Accès : `https://[MCP_PUBLIC_URL]/status` avec la même passphrase que la protection OAuth.
+
 ## Dépendances externes
 
 - Un daemon **`whatsapp-daemon`** séparé (pm2, même machine) pour les tools WhatsApp.

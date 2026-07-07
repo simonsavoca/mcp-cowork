@@ -32,6 +32,14 @@ const clientsStore = {
 const provider = {
   clientsStore,
 
+  getStats() {
+    return {
+      clients: clients.size,
+      accessTokens: accessTokens.size,
+      refreshTokens: refreshTokens.size,
+    };
+  },
+
   async authorize(client, params, res) {
     const code = randomToken();
     authCodes.set(code, {

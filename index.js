@@ -1,12 +1,16 @@
+require("dotenv").config();
+
 const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
 const { StreamableHTTPServerTransport } = require("@modelcontextprotocol/sdk/server/streamableHttp.js");
 const { mcpAuthRouter, getOAuthProtectedResourceMetadataUrl } = require("@modelcontextprotocol/sdk/server/auth/router.js");
 const { requireBearerAuth } = require("@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js");
 const { randomUUID } = require("node:crypto");
+const path = require("path");
 const express = require("express");
 const { z } = require("zod");
 const { provider: oauthProvider } = require("./modules/oauth");
 const { authGate } = require("./modules/authGate");
+const { registerStatusRoute } = require("./modules/status");
 const { registerGitHubTools }   = require("./modules/github");
 const { registerGraphTools }    = require("./modules/graph");
 const { registerGoogleTools }   = require("./modules/google");
@@ -86,9 +90,10 @@ const app = express();
 app.set("trust proxy", 1);
 const RESOURCE_URL = new URL("/mcp", PUBLIC_URL);
 
-// Gate réel devant /authorize (passphrase + confirmation) — DOIT être monté avant
+// Gate réel devant /authorize et /status (passphrase + confirmation) — DOIT être monté avant
 // mcpAuthRouter, qui sinon auto-approuve tout (voir modules/oauth.js, provider.authorize()).
-app.use("/authorize", authGate({ passphrase: GATE_PASSPHRASE }));
+const gate = authGate({ passphrase: GATE_PASSPHRASE });
+app.use(["/authorize", "/status"], gate);
 
 // Monte /register, /authorize, /token, /revoke, /.well-known/oauth-authorization-server,
 // et /.well-known/oauth-protected-resource/mcp (RFC 9728 — doit correspondre à la ressource /mcp).
@@ -142,6 +147,16 @@ app.delete("/mcp", requireAuth, async (req, res) => {
   const transport = sessionId ? transports.get(sessionId) : undefined;
   if (!transport) return res.status(404).json({ error: "session not found" });
   await transport.handleRequest(req, res);
+});
+
+const pkg = require("./package.json");
+const gateSessionsPath = path.join(__dirname, "data", "gate_sessions.json");
+registerStatusRoute(app, {
+  transports,
+  oauth: oauthProvider,
+  gateSessionsPath,
+  port: PORT,
+  version: pkg.version,
 });
 
 app.listen(PORT, () => {
