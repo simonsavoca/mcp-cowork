@@ -42,6 +42,14 @@ function registerGitHubTools(server) {
     return selfLoginCache;
   }
 
+  async function isOrgAccount(ownerName) {
+    try {
+      return (await gh(`/users/${ownerName}`)).type === 'Organization';
+    } catch {
+      return false;
+    }
+  }
+
   server.tool('github_auth', 'Vérifier le token GitHub et retourner le login + scopes', {}, async () => {
     if (!process.env.GITHUB_PERSO_TOKEN) return ok({ error: 'GITHUB_PERSO_TOKEN manquant' });
     try {
@@ -58,10 +66,10 @@ function registerGitHubTools(server) {
     {
       owner: z.string().optional().describe(`Owner (${ownerHint})`),
       type: z.enum(['all', 'public', 'private', 'forks', 'sources']).optional().describe('Filtre de type (défaut : all)'),
-      org: z.boolean().optional().describe('true si owner est une organisation'),
+      org: z.boolean().optional().describe('true/false pour forcer, sinon détecté automatiquement (user vs organisation)'),
       limit: z.number().int().min(1).max(100).optional().describe('Nombre de repos (défaut : 50)'),
     },
-    async ({ owner, type = 'all', org = false, limit = 50 } = {}) => {
+    async ({ owner, type = 'all', org, limit = 50 } = {}) => {
       const resolvedOwner = resolveOwner(owner);
       if (!resolvedOwner) return ok({ error: 'owner manquant : configure GITHUB_DEFAULT_OWNER ou passe owner explicitement' });
 
@@ -75,10 +83,12 @@ function registerGitHubTools(server) {
         default_branch: r.default_branch,
       });
 
+      const isOrg = org !== undefined ? org : await isOrgAccount(resolvedOwner);
+
       // /users/{owner}/repos ne retourne que les repos publics, même authentifié.
       // Pour voir les repos privés du propriétaire du token, il faut passer par
       // /user/repos (endpoint "authenticated user").
-      const isSelf = !org && resolvedOwner.toLowerCase() === (await getSelfLogin()).toLowerCase();
+      const isSelf = !isOrg && resolvedOwner.toLowerCase() === (await getSelfLogin()).toLowerCase();
 
       if (isSelf) {
         const isForkFilter = type === 'forks' || type === 'sources';
@@ -91,7 +101,7 @@ function registerGitHubTools(server) {
         return ok(filtered.slice(0, limit).map(shape));
       }
 
-      const base = org ? `/orgs/${resolvedOwner}/repos` : `/users/${resolvedOwner}/repos`;
+      const base = isOrg ? `/orgs/${resolvedOwner}/repos` : `/users/${resolvedOwner}/repos`;
       const repos = await gh(`${base}?type=${type}&per_page=${limit}&sort=updated`);
       return ok(repos.map(shape));
     }
