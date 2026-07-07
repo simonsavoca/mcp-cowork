@@ -5,9 +5,6 @@ const { requireBearerAuth } = require("@modelcontextprotocol/sdk/server/auth/mid
 const { randomUUID } = require("node:crypto");
 const express = require("express");
 const { z } = require("zod");
-const { v4: uuidv4 } = require("uuid");
-const qdrant = require("./modules/qdrant");
-const { embed } = require("./modules/embeddings");
 const { provider: oauthProvider } = require("./modules/oauth");
 const { authGate } = require("./modules/authGate");
 const { registerGitHubTools }   = require("./modules/github");
@@ -66,114 +63,6 @@ function createServer() {
   registerOsrmTools(server);
   registerPrimTools(server);
   registerSynologyTools(server);
-
-  server.tool("collection_init", "Create the francis_memory Qdrant collection if it does not exist", {}, async () => {
-    const result = await qdrant.collectionInit();
-    return ok(result);
-  });
-
-  server.tool(
-    "memory_search",
-    "Semantic search over Qdrant memories",
-    {
-      query: z.string().describe("Text to search for"),
-      limit: z.number().int().min(1).max(20).optional().default(5).describe("Number of results"),
-      type: z.string().optional().describe("Filter by memory type (profile, owner, knowledge, session_history, task)"),
-      status: z.string().optional().describe("Filter by task status (in_progress, done, cancelled)"),
-    },
-    async ({ query, limit, type, status }) => {
-      const vector = await embed(query);
-      const must = [];
-      if (type) must.push({ key: "type", match: { value: type } });
-      if (status) must.push({ key: "status", match: { value: status } });
-      const filter = must.length > 0 ? { must } : null;
-      const results = await qdrant.memorySearch(vector, filter, limit);
-      return ok(results);
-    }
-  );
-
-  server.tool(
-    "memory_store",
-    "Embed and store a new memory in Qdrant",
-    {
-      content: z.string().describe("Text content of the memory"),
-      type: z.enum(["profile", "owner", "knowledge", "session_history", "task"]).describe("Memory type"),
-      session_id: z.string().optional().describe("Session UUID (generated if omitted)"),
-      status: z.string().optional().describe("Task status — only for type=task"),
-      metadata: z.record(z.any()).optional().describe("Any additional payload fields"),
-    },
-    async ({ content, type, session_id, status, metadata }) => {
-      const id = uuidv4();
-      const vector = await embed(content);
-      const payload = {
-        content,
-        type,
-        session_id: session_id ?? uuidv4(),
-        timestamp: new Date().toISOString(),
-        ...(status ? { status } : {}),
-        ...(metadata ?? {}),
-      };
-      await qdrant.memoryStore(id, vector, payload);
-      return ok({ id, stored: true });
-    }
-  );
-
-  server.tool(
-    "memory_update",
-    "Update payload fields on an existing Qdrant point",
-    {
-      id: z.string().describe("UUID of the point to update"),
-      payload: z.record(z.any()).describe("Fields to set or overwrite"),
-    },
-    async ({ id, payload }) => {
-      await qdrant.memoryUpdate(id, payload);
-      return ok({ id, updated: true });
-    }
-  );
-
-  server.tool(
-    "memory_delete",
-    "Delete a memory point by ID",
-    {
-      id: z.string().describe("UUID of the point to delete"),
-    },
-    async ({ id }) => {
-      await qdrant.memoryDelete(id);
-      return ok({ id, deleted: true });
-    }
-  );
-
-  server.tool("session_list", "List all past session IDs with their first timestamp", {}, async () => {
-    const sessions = await qdrant.sessionList();
-    return ok(sessions);
-  });
-
-  server.tool(
-    "session_history_get",
-    "Retrieve all session_history entries for a given session",
-    {
-      session_id: z.string().describe("Session UUID to retrieve history for"),
-    },
-    async ({ session_id }) => {
-      const history = await qdrant.sessionHistoryGet(session_id);
-      return ok(history);
-    }
-  );
-
-  server.tool(
-    "qdrant_export",
-    "Export Qdrant memory to Obsidian Markdown vault (frontmatter + wikilinks)",
-    {
-      output_dir: z.string().describe("Absolute path to the Obsidian vault folder"),
-      exclude_types: z.array(z.string()).optional()
-        .default(["session_history"])
-        .describe("Memory types to exclude (default: session_history)"),
-    },
-    async ({ output_dir, exclude_types }) => {
-      const result = await qdrant.qdrantExport(output_dir, exclude_types);
-      return ok(result);
-    }
-  );
 
   return server;
 }

@@ -4,11 +4,11 @@
   "name": "mcp-cowork",
   "display_name": "Cowork MCP Server",
   "version": "1.0.0",
-  "description": "MCP server exposing a broad integration toolbox (GitHub, Google, Microsoft 365, OVH, o2switch, Steam, WhatsApp, transit, school, Synology NAS) plus a Qdrant-backed long-term memory interface.",
-  "long_description": "General-purpose MCP tool server, adaptable to any assistant identity. Includes WhatsApp tools via a shared external PM2 daemon (whatsapp-daemon on the reference deployment). Requires a reachable Qdrant instance (local or remote) for persistent memory.",
+  "description": "MCP server exposing a broad integration toolbox (GitHub, Google, Microsoft 365, OVH, o2switch, Steam, WhatsApp, transit, school, Synology NAS).",
+  "long_description": "General-purpose MCP tool server, adaptable to any assistant identity. Includes WhatsApp tools via a shared external PM2 daemon (whatsapp-daemon on the reference deployment).",
   "author": { "name": "Simon Savoca" },
   "license": "UNLICENSED",
-  "keywords": ["mcp", "assistant", "memory", "qdrant", "github", "google", "microsoft365", "ovh", "o2switch", "steam", "whatsapp", "pronote", "synology"],
+  "keywords": ["mcp", "assistant", "github", "google", "microsoft365", "ovh", "o2switch", "steam", "whatsapp", "pronote", "synology"],
   "server": {
     "type": "node",
     "entry_point": "index.js",
@@ -16,8 +16,6 @@
       "command": "node",
       "args": ["${__dirname}/index.js"],
       "env": {
-        "QDRANT_HOST": "${user_config.qdrant_host}",
-        "QDRANT_PORT": "${user_config.qdrant_port}",
         "PYTHON_CMD": "${user_config.python_cmd}",
         "GITHUB_DEFAULT_OWNER": "${user_config.github_default_owner}",
         "GITHUB_PERSO_TOKEN": "${user_config.github_perso_token}",
@@ -53,20 +51,6 @@
     "runtimes": { "node": ">=18.0.0" }
   },
   "user_config": {
-    "qdrant_host": {
-      "type": "string",
-      "title": "Qdrant — Host",
-      "description": "Adresse du serveur Qdrant (mémoire persistante)",
-      "default": "localhost",
-      "required": false
-    },
-    "qdrant_port": {
-      "type": "string",
-      "title": "Qdrant — Port",
-      "description": "Port du serveur Qdrant",
-      "default": "6333",
-      "required": false
-    },
     "python_cmd": {
       "type": "string",
       "title": "Python — Commande",

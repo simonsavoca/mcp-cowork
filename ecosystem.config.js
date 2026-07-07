@@ -14,9 +14,6 @@ module.exports = {
         MCP_HTTP_PORT: process.env.MCP_HTTP_PORT || "3100",
         MCP_GATE_PASSPHRASE: process.env.MCP_GATE_PASSPHRASE,
 
-        QDRANT_HOST: process.env.QDRANT_HOST || "localhost",
-        QDRANT_PORT: process.env.QDRANT_PORT || "6333",
-
         PYTHON_CMD: process.env.PYTHON_CMD,
 
         GITHUB_DEFAULT_OWNER: process.env.GITHUB_DEFAULT_OWNER,

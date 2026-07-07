@@ -1,12 +1,11 @@
 # mcp-cowork
 
-Serveur MCP (Model Context Protocol) exposé en HTTP distant, protégé par OAuth, conçu pour être ajouté comme connecteur dans Claude Desktop ou Claude.ai ("Cowork"). Il expose une large boîte à outils d'intégrations (GitHub, Microsoft 365, Google, OVH, o2switch, Steam, WhatsApp, transport, école, NAS Synology) ainsi qu'une interface de mémoire long-terme adossée à Qdrant.
+Serveur MCP (Model Context Protocol) exposé en HTTP distant, protégé par OAuth, conçu pour être ajouté comme connecteur dans Claude Desktop ou Claude.ai ("Cowork"). Il expose une large boîte à outils d'intégrations (GitHub, Microsoft 365, Google, OVH, o2switch, Steam, WhatsApp, transport, école, NAS Synology).
 
 ## Sommaire des tools
 
 | Module | Tools |
 |---|---|
-| Mémoire (Qdrant, inline) | `collection_init`, `memory_search`, `memory_store`, `memory_update`, `memory_delete`, `session_list`, `session_history_get`, `qdrant_export` |
 | GitHub | `github_auth`, `github_repos`, `github_issues`, `github_issue_get`, `github_issue_create`, `github_issue_comment`, `github_file` |
 | Microsoft 365 / Graph | `m365_auth`, `m365_mail_folders`, `m365_mail_list`, `m365_mail_get`, `m365_mail_move`, `m365_mail_delete`, `m365_calendar`, `m365_contacts`, `m365_todo_lists`, `m365_todo_tasks`, `m365_todo_task_create`, `m365_todo_task_update`, `m365_todo_task_delete` |
 | Google | `google_auth`, `google_auth_url`, `google_auth_callback`, `google_contacts`, `google_mail_profile`, `google_mail_list`, `google_mail_get`, `google_calendar_list`, `google_calendar_events` |
@@ -50,7 +49,6 @@ pm2 start ecosystem.config.js
 | `MCP_PUBLIC_URL` | URL publique HTTPS (issuer OAuth) — doit correspondre à l'URL du tunnel actif | oui |
 | `MCP_HTTP_PORT` | Port d'écoute local (défaut 3100) | non |
 | `MCP_GATE_PASSPHRASE` | Passphrase de la vraie couche de contrôle d'accès devant `/authorize` | oui |
-| `QDRANT_HOST` / `QDRANT_PORT` | Instance Qdrant pour la mémoire persistante | non (défaut localhost:6333) |
 | `PYTHON_CMD` | Commande Python pour les tools Pronote (nécessite `pronotepy`) | non (défaut `python`) |
 | `GITHUB_DEFAULT_OWNER`, `GITHUB_PERSO_TOKEN` | GitHub | non |
 | `M365_TENANT_ID`, `M365_CLIENT_ID`, `M365_CLIENT_SECRET` | Microsoft Graph (flux client-credentials) | non |
@@ -77,7 +75,6 @@ Changer `MCP_PUBLIC_URL` (ex : nouvelle URL de tunnel) impose un `pm2 restart` e
 
 ## Dépendances externes
 
-- Une instance **Qdrant** accessible (`QDRANT_HOST:QDRANT_PORT`) pour la mémoire persistante.
 - Un daemon **`whatsapp-daemon`** séparé (pm2, même machine) pour les tools WhatsApp.
 - **Python + `pronotepy`** installés si les tools Pronote sont utilisés (`scripts/pronote.py`).
 - Un tunnel HTTPS public (ex. ngrok) pointant vers `MCP_HTTP_PORT`, pour l'exposition en tant que connecteur distant.
