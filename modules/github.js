@@ -36,6 +36,12 @@ function registerGitHubTools(server) {
     return owner || DEFAULT_OWNER || null;
   }
 
+  let selfLoginCache = null;
+  async function getSelfLogin() {
+    if (!selfLoginCache) selfLoginCache = (await gh('/user')).login;
+    return selfLoginCache;
+  }
+
   server.tool('github_auth', 'Vérifier le token GitHub et retourner le login + scopes', {}, async () => {
     if (!process.env.GITHUB_PERSO_TOKEN) return ok({ error: 'GITHUB_PERSO_TOKEN manquant' });
     try {
@@ -58,9 +64,8 @@ function registerGitHubTools(server) {
     async ({ owner, type = 'all', org = false, limit = 50 } = {}) => {
       const resolvedOwner = resolveOwner(owner);
       if (!resolvedOwner) return ok({ error: 'owner manquant : configure GITHUB_DEFAULT_OWNER ou passe owner explicitement' });
-      const base = org ? `/orgs/${resolvedOwner}/repos` : `/users/${resolvedOwner}/repos`;
-      const repos = await gh(`${base}?type=${type}&per_page=${limit}&sort=updated`);
-      return ok(repos.map(r => ({
+
+      const shape = r => ({
         name: r.name,
         full_name: r.full_name,
         private: r.private,
@@ -68,7 +73,27 @@ function registerGitHubTools(server) {
         description: r.description,
         updated_at: r.updated_at,
         default_branch: r.default_branch,
-      })));
+      });
+
+      // /users/{owner}/repos ne retourne que les repos publics, même authentifié.
+      // Pour voir les repos privés du propriétaire du token, il faut passer par
+      // /user/repos (endpoint "authenticated user").
+      const isSelf = !org && resolvedOwner.toLowerCase() === (await getSelfLogin()).toLowerCase();
+
+      if (isSelf) {
+        const isForkFilter = type === 'forks' || type === 'sources';
+        const visibility = isForkFilter ? 'all' : type;
+        const fetchLimit = isForkFilter ? 100 : limit;
+        const repos = await gh(`/user/repos?visibility=${visibility}&affiliation=owner&per_page=${fetchLimit}&sort=updated`);
+        const filtered = type === 'forks' ? repos.filter(r => r.fork)
+          : type === 'sources' ? repos.filter(r => !r.fork)
+          : repos;
+        return ok(filtered.slice(0, limit).map(shape));
+      }
+
+      const base = org ? `/orgs/${resolvedOwner}/repos` : `/users/${resolvedOwner}/repos`;
+      const repos = await gh(`${base}?type=${type}&per_page=${limit}&sort=updated`);
+      return ok(repos.map(shape));
     }
   );
 
