@@ -19,6 +19,7 @@ const { registerO2switchTools } = require("./modules/o2switch");
 const { registerOsrmTools }     = require("./modules/osrm");
 const { registerPrimTools }     = require("./modules/prim");
 const { registerSynologyTools } = require("./modules/synology");
+const { registerPushoverTools } = require("./modules/pushover");
 
 const PUBLIC_URL = process.env.MCP_PUBLIC_URL;
 if (!PUBLIC_URL) {
@@ -63,6 +64,7 @@ function createServer() {
   registerOsrmTools(server);
   registerPrimTools(server);
   registerSynologyTools(server);
+  registerPushoverTools(server);
 
   return server;
 }

@@ -1,6 +1,6 @@
 # mcp-cowork
 
-Serveur MCP (Model Context Protocol) exposé en HTTP distant, protégé par OAuth, conçu pour être ajouté comme connecteur dans Claude Desktop ou Claude.ai ("Cowork"). Il expose une large boîte à outils d'intégrations (GitHub, Microsoft 365, Google, OVH, o2switch, Steam, WhatsApp, transport, école, NAS Synology).
+Serveur MCP (Model Context Protocol) exposé en HTTP distant, protégé par OAuth, conçu pour être ajouté comme connecteur dans Claude Desktop ou Claude.ai ("Cowork"). Il expose une large boîte à outils d'intégrations (GitHub, Microsoft 365, Google, OVH, o2switch, Steam, WhatsApp, transport, école, NAS Synology, notifications Pushover).
 
 ## Sommaire des tools
 
@@ -18,6 +18,7 @@ Serveur MCP (Model Context Protocol) exposé en HTTP distant, protégé par OAut
 | PRIM / IDFM (transport) | `prim_auth`, `prim_search_stop`, `prim_departures`, `prim_disruptions` |
 | Synology NAS | `synology_discover`, `synology_auth`, `synology_system_info`, `synology_system_utilization`, `synology_storage_status` |
 | OSRM (itinéraires) | `osrm_geocode`, `osrm_directions` |
+| Pushover (notifications) | `pushover_auth`, `pushover_send` |
 
 Les tools WhatsApp appellent un daemon externe séparé (`whatsapp-daemon` sur le déploiement de référence, tournant sous pm2 sur la même machine) — ce repo ne le démarre pas, il s'y connecte seulement via `modules/whatsapp.js`.
 
@@ -59,6 +60,7 @@ pm2 start ecosystem.config.js
 | `NEO_ENT_URL`, `EDUCONNECT_LOGIN`, `EDUCONNECT_PASSWORD`, `PRONOTE_QR_PIN` | ENT scolaire NEO + Pronote (EduConnect partagé) | non |
 | `PRIM_API_KEY` | API PRIM/IDFM transport | non |
 | `SYNOLOGY_NAS_HOST`, `SYNOLOGY_NAS_PORT`, `SYNOLOGY_NAS_USER`, `SYNOLOGY_NAS_PASSWORD` | NAS Synology DSM | non |
+| `PUSHOVER_APP_TOKEN`, `PUSHOVER_USER_KEY` | Notifications push Pushover.net | non |
 
 Toutes les intégrations sont optionnelles — sans leurs variables, les tools correspondants renvoient une erreur explicite au lieu de planter le serveur.
 
