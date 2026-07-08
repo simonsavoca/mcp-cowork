@@ -108,6 +108,59 @@ function registerPrimTools(server) {
   );
 
   server.tool(
+    'prim_line_routes',
+    "Liste les itinéraires (branches) d'une ligne — une ligne peut desservir des chemins différents selon les trains (ex: Ligne J Paris St-Lazare/Mantes-la-Jolie via Conflans ou via Houilles-Carrières-sur-Seine), utilise l'id de ligne obtenu via prim_search_line",
+    { line_id: z.string().describe('id de la ligne, ex: line:IDFM:C01742 (voir prim_search_line)') },
+    async ({ line_id }) => {
+      const url = `${NAVITIA_BASE}/lines/${encodeURIComponent(line_id)}/routes?count=100`;
+      const data = await api(url);
+      const results = (data.routes || []).map(r => ({
+        route_id: r.id,
+        name: r.name,
+        direction: r.direction?.name,
+      }));
+      return ok(results);
+    }
+  );
+
+  server.tool(
+    'prim_line_stops',
+    "Liste les arrêts desservis par une ligne, regroupés et ordonnés par itinéraire/branche (car une même ligne peut avoir des chemins et arrêts différents selon la branche — voir prim_line_routes). Utilise l'id de ligne obtenu via prim_search_line, ou limite à un route_id précis (voir prim_line_routes)",
+    {
+      line_id: z.string().describe('id de la ligne, ex: line:IDFM:C01742 (voir prim_search_line)'),
+      route_id: z.string().optional().describe("id d'un itinéraire précis (voir prim_line_routes) pour ne lister que cette branche"),
+    },
+    async ({ line_id, route_id }) => {
+      let routes;
+      if (route_id) {
+        routes = [{ route_id, name: null, direction: null }];
+      } else {
+        const routesData = await api(`${NAVITIA_BASE}/lines/${encodeURIComponent(line_id)}/routes?count=100`);
+        routes = (routesData.routes || []).map(r => ({ route_id: r.id, name: r.name, direction: r.direction?.name }));
+      }
+
+      const results = [];
+      for (const route of routes) {
+        const data = await api(`${NAVITIA_BASE}/routes/${encodeURIComponent(route.route_id)}/stop_points?count=1000&depth=1`);
+        const stops = [];
+        let lastAreaId = null;
+        for (const sp of data.stop_points || []) {
+          const areaId = sp.stop_area?.id || null;
+          if (areaId && areaId === lastAreaId) continue;
+          stops.push({
+            name: sp.stop_area?.name || sp.name,
+            stop_area_id: areaId,
+            monitoring_ref: toMonitoringRef(areaId),
+          });
+          lastAreaId = areaId;
+        }
+        results.push({ route_id: route.route_id, route_name: route.name, direction: route.direction, stops });
+      }
+      return ok(results);
+    }
+  );
+
+  server.tool(
     'prim_disruptions',
     'Liste les perturbations de trafic en cours sur le réseau IDFM (RATP, Transilien, RER, Tram, Bus)',
     { line_id: z.string().optional().describe('Filtrer sur une ligne précise, ex: line:IDFM:C01742 (optionnel)') },
