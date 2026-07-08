@@ -55,7 +55,7 @@ const MODULES = [
   },
   {
     name: "PRIM / IDFM (transport)",
-    tools: ["prim_auth", "prim_search_stop", "prim_departures", "prim_disruptions"],
+    tools: ["prim_auth", "prim_search_stop", "prim_search_line", "prim_departures", "prim_disruptions"],
     requiredEnv: ["PRIM_API_KEY"],
   },
   {

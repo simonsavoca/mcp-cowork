@@ -67,6 +67,24 @@ function registerPrimTools(server) {
   );
 
   server.tool(
+    'prim_search_line',
+    'Recherche une ligne de transport par nom (métro, RER, tram, bus, ex: "RER A", "Ligne J", "Metro 4") — retourne son id ligne utilisable pour prim_disruptions',
+    { query: z.string().describe('Nom ou numéro de la ligne à rechercher, ex: "RER A", "Ligne J", "Metro 4", "Bus 38"') },
+    async ({ query }) => {
+      const url = `${NAVITIA_BASE}/pt_objects?q=${encodeURIComponent(query)}&type[]=line`;
+      const data = await api(url);
+      const results = (data.pt_objects || []).map(o => ({
+        name: o.name,
+        id: o.line?.id || o.id,
+        network: o.line?.network?.name,
+        mode: o.line?.commercial_mode?.name,
+        code: o.line?.code,
+      }));
+      return ok(results);
+    }
+  );
+
+  server.tool(
     'prim_departures',
     "Prochains passages temps réel à un arrêt (format SIRI, ex: MonitoringRef 'STIF:StopArea:SP:463641:')",
     { monitoring_ref: z.string().describe("Référence SIRI de l'arrêt, format STIF:StopArea:SP:<code>: (ou id Navitia stop_area:IDFM:...)") },

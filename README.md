@@ -15,7 +15,7 @@ Serveur MCP (Model Context Protocol) exposé en HTTP distant, protégé par OAut
 | WhatsApp | `whatsapp_auth`, `whatsapp_recent`, `whatsapp_unread`, `whatsapp_send`, `whatsapp_mark_read`, `whatsapp_join_group` |
 | Pronote | `pronote_grades`, `pronote_timetable`, `pronote_absences`, `pronote_homework`, `pronote_bulletin` |
 | NEO (ENT scolaire) | `neo_auth`, `neo_messages`, `neo_inbox`, `neo_inbox_count`, `neo_message_get`, `neo_message_delete`, `neo_homework`, `neo_agenda` |
-| PRIM / IDFM (transport) | `prim_auth`, `prim_search_stop`, `prim_departures`, `prim_disruptions` |
+| PRIM / IDFM (transport) | `prim_auth`, `prim_search_stop`, `prim_search_line`, `prim_departures`, `prim_disruptions` |
 | Synology NAS | `synology_discover`, `synology_auth`, `synology_system_info`, `synology_system_utilization`, `synology_storage_status` |
 | OSRM (itinéraires) | `osrm_geocode`, `osrm_directions` |
 | Pushover (notifications) | `pushover_auth`, `pushover_send` |
