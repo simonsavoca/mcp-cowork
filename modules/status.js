@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { createServer } = require("./registry");
 
 const MODULES = [
   {
@@ -15,7 +16,7 @@ const MODULES = [
   },
   {
     name: "Google",
-    tools: ["google_auth", "google_auth_url", "google_auth_callback", "google_contacts", "google_mail_profile", "google_mail_list", "google_mail_get", "google_calendar_list", "google_calendar_events"],
+    tools: ["google_auth", "google_auth_url", "google_auth_callback", "google_contacts", "google_mail_profile", "google_mail_list", "google_mail_get", "google_calendar_list", "google_calendar_events", "google_calendar_event_create", "google_calendar_event_update", "google_calendar_event_delete"],
     requiredEnv: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
     optionalEnv: ["GOOGLE_REFRESH_TOKEN"],
   },
@@ -27,7 +28,7 @@ const MODULES = [
   },
   {
     name: "o2switch (cPanel)",
-    tools: ["o2switch_auth", "o2switch_email_list", "o2switch_email_create", "o2switch_email_delete", "o2switch_db_list", "o2switch_db_create", "o2switch_db_users", "o2switch_db_user_create", "o2switch_domains", "o2switch_subdomain_list", "o2switch_subdomain_create", "o2switch_subdomain_delete", "o2switch_dns_zone", "o2switch_ssl_list", "o2switch_ssl_autossl", "o2switch_apps_list"],
+    tools: ["o2switch_auth", "o2switch_email_list", "o2switch_email_create", "o2switch_email_delete", "o2switch_email_forwarders", "o2switch_mailing_lists", "o2switch_ftp_list", "o2switch_ftp_create", "o2switch_ftp_delete", "o2switch_db_list", "o2switch_db_create", "o2switch_db_users", "o2switch_db_user_create", "o2switch_domains", "o2switch_subdomain_list", "o2switch_subdomain_create", "o2switch_subdomain_delete", "o2switch_dns_zone", "o2switch_ssl_list", "o2switch_ssl_autossl", "o2switch_git_repos", "o2switch_php_version", "o2switch_nodejs_apps", "o2switch_apps_list"],
     requiredEnv: ["O2SWITCH_HOST", "O2SWITCH_API_USER", "O2SWITCH_API_TOKEN", "O2SWITCH_PASSWORD"],
   },
   {
@@ -55,7 +56,7 @@ const MODULES = [
   },
   {
     name: "PRIM / IDFM (transport)",
-    tools: ["prim_auth", "prim_search_stop", "prim_search_line", "prim_departures", "prim_disruptions"],
+    tools: ["prim_auth", "prim_search_stop", "prim_search_line", "prim_departures", "prim_line_routes", "prim_line_stops", "prim_journey", "prim_disruptions"],
     requiredEnv: ["PRIM_API_KEY"],
   },
   {
@@ -90,6 +91,21 @@ function escapeHtml(s) {
   }[c]));
 }
 
+// Les descriptions vivent déjà dans modules/*.js (2e argument de server.tool()).
+// On les récupère depuis un McpServer jetable plutôt que de les dupliquer ici
+// (createServer() est déjà rappelé sans coût réel à chaque session HTTP, voir modules/registry.js).
+let toolDescriptionsCache = null;
+function getToolDescriptions() {
+  if (!toolDescriptionsCache) {
+    toolDescriptionsCache = {};
+    const tmp = createServer();
+    for (const [name, tool] of Object.entries(tmp._registeredTools)) {
+      toolDescriptionsCache[name] = tool.description;
+    }
+  }
+  return toolDescriptionsCache;
+}
+
 function renderStatusPage(data) {
   const {
     version,
@@ -110,11 +126,24 @@ function renderStatusPage(data) {
     const configClass = m.isConfigured ? 'configured' : 'not-configured';
     const note = m.note ? ` <span class="note">(${escapeHtml(m.note)})</span>` : '';
     const externalNote = m.externalDep ? ` <span class="external">[${escapeHtml(m.externalDep)}]</span>` : '';
+    const toolRows = m.toolDetails.map(t => `
+          <tr>
+            <td><code>${escapeHtml(t.name)}</code></td>
+            <td>${escapeHtml(t.description)}</td>
+          </tr>`).join('');
     return `
     <tr>
       <td><strong>${escapeHtml(m.name)}</strong></td>
       <td><span class="${configClass}">${configStatus}</span>${note}${externalNote}</td>
-      <td>${m.toolCount} tool${m.toolCount > 1 ? 's' : ''}</td>
+      <td>
+        <details>
+          <summary>${m.toolCount} tool${m.toolCount > 1 ? 's' : ''}</summary>
+          <table class="tools-table">
+            <thead><tr><th>Nom</th><th>Description</th></tr></thead>
+            <tbody>${toolRows}</tbody>
+          </table>
+        </details>
+      </td>
     </tr>`;
   }).join('');
 
@@ -195,6 +224,11 @@ function renderStatusPage(data) {
       border-bottom: 1px solid #262b35;
     }
     table tr:hover { background: #0f1115; }
+    details summary { cursor: pointer; color: #64b5f6; }
+    details[open] summary { margin-bottom: 8px; }
+    .tools-table { margin-top: 4px; font-size: 13px; }
+    .tools-table th, .tools-table td { padding: 6px 8px; }
+    .tools-table code { color: #25d366; }
     .configured { color: #25d366; font-weight: 500; }
     .not-configured { color: #ef5350; font-weight: 500; }
     .note { font-size: 12px; color: #8b93a3; }
@@ -366,12 +400,17 @@ function registerStatusRoute(app, { transports, oauth, gateSessionsPath, port, v
 
     const oauthStats = oauth.getStats();
 
+    const toolDescriptions = getToolDescriptions();
     const modules = MODULES.map((m) => {
       const isConfigured = m.requiredEnv.every((v) => process.env[v]);
       return {
         name: m.name,
         isConfigured,
         toolCount: m.tools.length,
+        toolDetails: m.tools.map((name) => ({
+          name,
+          description: toolDescriptions[name] || "(description indisponible)",
+        })),
         note: m.note,
         externalDep: m.externalDep,
       };

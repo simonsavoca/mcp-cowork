@@ -1,6 +1,5 @@
 require("dotenv").config();
 
-const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
 const { StreamableHTTPServerTransport } = require("@modelcontextprotocol/sdk/server/streamableHttp.js");
 const { mcpAuthRouter, getOAuthProtectedResourceMetadataUrl } = require("@modelcontextprotocol/sdk/server/auth/router.js");
 const { requireBearerAuth } = require("@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js");
@@ -11,20 +10,7 @@ const { z } = require("zod");
 const { provider: oauthProvider } = require("./modules/oauth");
 const { authGate } = require("./modules/authGate");
 const { registerStatusRoute } = require("./modules/status");
-const { registerGitHubTools }   = require("./modules/github");
-const { registerGraphTools }    = require("./modules/graph");
-const { registerGoogleTools }   = require("./modules/google");
-const { registerOvhTools }      = require("./modules/ovh");
-const { registerSteamTools }    = require("./modules/steam");
-const { registerWhatsAppTools } = require("./modules/whatsapp");
-const { registerPronoteTools }  = require("./modules/pronote");
-const { registerNeoTools }      = require("./modules/neo");
-const { registerO2switchTools } = require("./modules/o2switch");
-const { registerOsrmTools }     = require("./modules/osrm");
-const { registerPrimTools }     = require("./modules/prim");
-const { registerSynologyTools } = require("./modules/synology");
-const { registerPushoverTools } = require("./modules/pushover");
-const { registerNtfyTools }     = require("./modules/ntfy");
+const { createServer } = require("./modules/registry");
 
 const PUBLIC_URL = process.env.MCP_PUBLIC_URL;
 if (!PUBLIC_URL) {
@@ -39,40 +25,12 @@ if (!GATE_PASSPHRASE) {
   process.exit(1);
 }
 
-// Un McpServer ne peut être connecté qu'à un seul transport à la fois (sinon
-// "Already connected to a transport"). Chaque session Streamable HTTP a donc
-// besoin de sa propre instance — createServer() réenregistre les mêmes tools
-// (stateless, aucun coût réel) sur un McpServer frais à chaque session.
 function ok(data) {
   const structured = data !== null && typeof data === "object" && !Array.isArray(data) ? data : { items: data };
   return {
     content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
     structuredContent: structured,
   };
-}
-
-function createServer() {
-  const server = new McpServer({
-    name: "mcp-cowork",
-    version: "1.0.0",
-  });
-
-  registerGitHubTools(server);
-  registerGraphTools(server);
-  registerGoogleTools(server);
-  registerOvhTools(server);
-  registerSteamTools(server);
-  registerWhatsAppTools(server);
-  registerPronoteTools(server);
-  registerNeoTools(server);
-  registerO2switchTools(server);
-  registerOsrmTools(server);
-  registerPrimTools(server);
-  registerSynologyTools(server);
-  registerPushoverTools(server);
-  registerNtfyTools(server);
-
-  return server;
 }
 
 // --- Transport HTTP (Streamable HTTP), une instance de McpServer par session ---
