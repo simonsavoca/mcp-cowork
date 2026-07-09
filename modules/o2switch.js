@@ -107,6 +107,62 @@ function registerO2switchTools(server) {
     }
   );
 
+  server.tool(
+    "o2switch_email_forwarders",
+    "Lister les redirections email (par adresse et redirections globales de domaine) d'un domaine cPanel",
+    {
+      domain: z.string().describe("Nom de domaine (ex: savoca.fr)"),
+    },
+    async ({ domain }) => {
+      const [forwarders, domainForwarders] = await Promise.all([
+        uapi("Email", "list_forwarders", { domain }),
+        uapi("Email", "list_domain_forwarders", { domain }),
+      ]);
+      return ok({ forwarders, domain_forwarders: domainForwarders });
+    }
+  );
+
+  server.tool(
+    "o2switch_mailing_lists",
+    "Lister les listes de diffusion (Mailman) du compte cPanel",
+    {
+      domain: z.string().optional().describe("Filtrer par domaine (ex: savoca.fr)"),
+    },
+    async ({ domain } = {}) => ok(await uapi("Email", "list_lists", domain ? { domain } : {}))
+  );
+
+  // ── FTP ──────────────────────────────────────────────────────────────────
+  server.tool(
+    "o2switch_ftp_list",
+    "Lister les comptes FTP cPanel",
+    {},
+    async () => ok(await uapi("Ftp", "list_ftp"))
+  );
+
+  server.tool(
+    "o2switch_ftp_create",
+    "Créer un compte FTP cPanel",
+    {
+      user: z.string().describe("Nom d'utilisateur FTP"),
+      password: z.string().describe("Mot de passe"),
+      homedir: z.string().optional().describe("Dossier racine du compte (relatif au home cPanel)"),
+      quota: z.number().int().optional().default(0).describe("Quota en Mo (0 = illimité)"),
+    },
+    async ({ user, password, homedir, quota = 0 }) =>
+      ok(await uapi("Ftp", "add_ftp", { user, pass: password, homedir, quota }))
+  );
+
+  server.tool(
+    "o2switch_ftp_delete",
+    "Supprimer un compte FTP cPanel",
+    {
+      user: z.string().describe("Nom d'utilisateur FTP (ex: user@savoca.fr)"),
+      destroy: z.boolean().optional().default(false).describe("Supprimer aussi les fichiers du compte"),
+    },
+    async ({ user, destroy = false }) =>
+      ok(await uapi("Ftp", "delete_ftp", { user, destroy: destroy ? 1 : 0 }))
+  );
+
   // ── Bases de données ─────────────────────────────────────────────────────
   server.tool(
     "o2switch_db_list",
@@ -202,6 +258,30 @@ function registerO2switchTools(server) {
     "Déclencher AutoSSL (Let's Encrypt) pour tous les domaines du compte",
     {},
     async () => ok(await uapi("LetsEncrypt", "install_ssl_for_all_domains"))
+  );
+
+  // ── Git ──────────────────────────────────────────────────────────────────
+  server.tool(
+    "o2switch_git_repos",
+    "Lister les dépôts Git gérés par cPanel (fonctionnalité Git Version Control)",
+    {},
+    async () => ok(await uapi("VersionControl", "retrieve"))
+  );
+
+  // ── PHP ──────────────────────────────────────────────────────────────────
+  server.tool(
+    "o2switch_php_version",
+    "Lister la version PHP configurée pour chaque domaine/vhost du compte cPanel",
+    {},
+    async () => ok(await uapi("LangPHP", "php_get_vhost_versions"))
+  );
+
+  // ── Node.js ──────────────────────────────────────────────────────────────
+  server.tool(
+    "o2switch_nodejs_apps",
+    "Lister les applications Node.js enregistrées (Application Manager / Passenger)",
+    {},
+    async () => ok(await uapi("Passenger", "list_applications"))
   );
 
   // ── Softaculous ──────────────────────────────────────────────────────────

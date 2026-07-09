@@ -51,8 +51,18 @@ module.exports = {
         SYNOLOGY_NAS_USER: process.env.SYNOLOGY_NAS_USER,
         SYNOLOGY_NAS_PASSWORD: process.env.SYNOLOGY_NAS_PASSWORD,
         PUSHOVER_APP_TOKEN: process.env.PUSHOVER_APP_TOKEN,
-        PUSHOVER_USER_KEY: process.env.PUSHOVER_USER_KEY
+        PUSHOVER_USER_KEY: process.env.PUSHOVER_USER_KEY,
+
+        WHATSAPP_DAEMON_TOKEN: process.env.WHATSAPP_DAEMON_TOKEN,
       },
+    },
+    {
+      name: "mcp-cowork-tunnel",
+      script: "bash",
+      args: `-c "ngrok http 3100 --url=${process.env.MCP_PUBLIC_URL}"`,
+      cwd: __dirname,
+      autorestart: true,
+      watch: false,
     },
   ],
 };

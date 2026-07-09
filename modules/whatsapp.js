@@ -6,11 +6,23 @@ const IPC_HOST = '127.0.0.1';
 const IPC_PORT = 3099;
 
 function ipcRequest(method, path, body) {
+    const token = process.env.WHATSAPP_DAEMON_TOKEN;
+    if (!token) {
+        return Promise.reject(new Error('WHATSAPP_DAEMON_TOKEN non défini dans les variables d\'environnement. Définir cette variable dans .env avec le token du daemon WhatsApp.'));
+    }
+
     return new Promise((resolve, reject) => {
         const data = body ? JSON.stringify(body) : null;
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+        };
+        if (data) {
+            headers['Content-Type'] = 'application/json';
+            headers['Content-Length'] = Buffer.byteLength(data);
+        }
         const req = http.request({
             hostname: IPC_HOST, port: IPC_PORT, path, method,
-            headers: data ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } : {},
+            headers,
         }, res => {
             let out = '';
             res.on('data', d => out += d);

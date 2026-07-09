@@ -161,6 +161,43 @@ function registerPrimTools(server) {
   );
 
   server.tool(
+    'prim_journey',
+    "Calcule un itinéraire entre deux points (arrêts ou coordonnées), avec horaires, correspondances et durée — utilise les id renvoyés par prim_search_stop pour 'from'/'to', ou des coordonnées 'longitude;latitude'",
+    {
+      from: z.string().describe('Point de départ : id Navitia (stop_area:IDFM:..., voir prim_search_stop) ou coordonnées "lon;lat"'),
+      to: z.string().describe('Point d\'arrivée : id Navitia (stop_area:IDFM:..., voir prim_search_stop) ou coordonnées "lon;lat"'),
+      datetime: z.string().optional().describe('Date/heure ISO 8601, ex "2026-07-08T18:30:00" (défaut: maintenant)'),
+      datetime_represents: z.enum(['departure', 'arrival']).optional().describe("Interprète 'datetime' comme heure de départ souhaitée ou heure d'arrivée souhaitée (défaut: departure)"),
+      count: z.number().optional().describe("Nombre de propositions d'itinéraires à retourner (défaut: 3)"),
+    },
+    async ({ from, to, datetime, datetime_represents, count }) => {
+      const params = new URLSearchParams({ from, to, count: String(count ?? 3) });
+      if (datetime) params.set('datetime', datetime);
+      if (datetime_represents) params.set('datetime_represents', datetime_represents);
+      const data = await api(`${NAVITIA_BASE}/journeys?${params.toString()}`);
+      const results = (data.journeys || []).map(j => ({
+        departure_date_time: j.departure_date_time,
+        arrival_date_time: j.arrival_date_time,
+        duration_minutes: j.duration != null ? Math.round(j.duration / 60) : null,
+        nb_transfers: j.nb_transfers,
+        sections: (j.sections || [])
+          .filter(s => s.type !== 'waiting')
+          .map(s => ({
+            mode: s.type,
+            line: s.display_informations?.label || s.display_informations?.code,
+            network: s.display_informations?.network,
+            from: s.from?.name,
+            to: s.to?.name,
+            departure_date_time: s.departure_date_time,
+            arrival_date_time: s.arrival_date_time,
+            duration_minutes: s.duration != null ? Math.round(s.duration / 60) : null,
+          })),
+      }));
+      return ok(results);
+    }
+  );
+
+  server.tool(
     'prim_disruptions',
     'Liste les perturbations de trafic en cours sur le réseau IDFM (RATP, Transilien, RER, Tram, Bus)',
     { line_id: z.string().optional().describe('Filtrer sur une ligne précise, ex: line:IDFM:C01742 (optionnel)') },
