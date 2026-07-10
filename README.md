@@ -65,6 +65,7 @@ pm2 start ecosystem.config.js
 | `SYNOLOGY_NAS_HOST`, `SYNOLOGY_NAS_PORT`, `SYNOLOGY_NAS_USER`, `SYNOLOGY_NAS_PASSWORD` | NAS Synology DSM | non |
 | `PUSHOVER_APP_TOKEN`, `PUSHOVER_USER_KEY` | Notifications push Pushover.net | non |
 | `NTFY_SERVER`, `NTFY_TOPIC`, `NTFY_TOKEN`, `NTFY_USERNAME`, `NTFY_PASSWORD` | Notifications ntfy (ntfy.sh ou auto-hébergé ; `NTFY_TOKEN` ou `NTFY_USERNAME`/`NTFY_PASSWORD` uniquement pour un topic protégé) | non |
+| `WHATSAPP_DAEMON_TOKEN` | Bearer token pour l'API du `whatsapp-daemon` externe (127.0.0.1:3099) — à récupérer via `http://127.0.0.1:3099/auth/status` après login | non |
 
 Toutes les intégrations sont optionnelles — sans leurs variables, les tools correspondants renvoient une erreur explicite au lieu de planter le serveur.
 
