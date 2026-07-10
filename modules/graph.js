@@ -50,11 +50,11 @@ const WELL_KNOWN_FOLDERS = new Set([
   'scheduled', 'searchfolders', 'serverfailures', 'syncissues',
 ]);
 
-// Résout un nom de dossier humain (ex: "Associations/Bodega") en ID Graph.
+// Résout un nom de dossier humain (ex: "Associations/Bodega") en ID Graph, ou null si introuvable.
 // Si `nameOrId` ressemble déjà à un ID (long alphanumérique), le retourne tel quel.
 // Les noms canoniques Graph (inbox, drafts…) sont retournés tels quels.
 // Supporte les chemins avec "/" et la recherche récursive pour les noms simples.
-async function resolveFolderId(nameOrId, user) {
+async function findFolderId(nameOrId, user) {
   if (/^[A-Za-z0-9_+/=-]{50,}$/.test(nameOrId)) return nameOrId;
   if (WELL_KNOWN_FOLDERS.has(nameOrId.toLowerCase())) return nameOrId.toLowerCase();
 
@@ -85,7 +85,7 @@ async function resolveFolderId(nameOrId, user) {
         }
       }
 
-      if (!matchId) throw new Error(`Dossier introuvable : "${part}" dans le chemin "${nameOrId}"`);
+      if (!matchId) return null;
       currentId = matchId;
     }
     return currentId;
@@ -101,7 +101,50 @@ async function resolveFolderId(nameOrId, user) {
     if (found) return found;
   }
 
-  throw new Error(`Dossier introuvable : "${nameOrId}"`);
+  return null;
+}
+
+async function resolveFolderId(nameOrId, user) {
+  const id = await findFolderId(nameOrId, user);
+  if (!id) throw new Error(`Dossier introuvable : "${nameOrId}"`);
+  return id;
+}
+
+// Crée un dossier (ou un chemin "A/B/C") en créant les niveaux intermédiaires manquants.
+// Parcours strictement top-down (pas de recherche récursive) pour rester déterministe.
+// Idempotent : renvoie { id, created } où `created` indique si la feuille a été créée.
+async function ensureFolderPath(path, user) {
+  const parts = path.split('/').map(p => p.trim()).filter(Boolean);
+  if (!parts.length) throw new Error('Chemin de dossier vide');
+
+  let currentId = null;
+  let created = false;
+
+  for (const part of parts) {
+    const needle = part.toLowerCase();
+    const listUrl = currentId
+      ? `/users/${user}/mailFolders/${encodeURIComponent(currentId)}/childFolders?$top=200&$select=id,displayName`
+      : `/users/${user}/mailFolders?$top=200&$select=id,displayName`;
+    const data = await graph(listUrl);
+    const existing = (data.value || []).find(f => f.displayName.toLowerCase() === needle);
+
+    if (existing) {
+      currentId = existing.id;
+      created = false;
+    } else {
+      const createUrl = currentId
+        ? `/users/${user}/mailFolders/${encodeURIComponent(currentId)}/childFolders`
+        : `/users/${user}/mailFolders`;
+      const result = await graph(createUrl, {
+        method: 'POST',
+        body: JSON.stringify({ displayName: part }),
+      });
+      currentId = result.id;
+      created = true;
+    }
+  }
+
+  return { id: currentId, created };
 }
 
 function assertValidMessageId(id) {
@@ -164,6 +207,32 @@ function registerGraphTools(server) {
       }
       const data = await graph(url);
       return ok(data.value);
+    }
+  );
+
+  server.tool(
+    'm365_mail_folder_exists',
+    'Vérifie si un dossier mail M365 existe (par nom ou chemin, ex: "Associations/Bodega"), sans lever d\'erreur',
+    {
+      user: z.string().describe('Email du compte M365'),
+      path: z.string().describe('Nom ou chemin du dossier à vérifier'),
+    },
+    async ({ user, path }) => {
+      const id = await findFolderId(path, user);
+      return ok(id ? { exists: true, id, path } : { exists: false, path });
+    }
+  );
+
+  server.tool(
+    'm365_mail_folder_create',
+    'Crée un dossier mail M365 (par nom ou chemin, ex: "Associations/Bodega") ; crée aussi les dossiers intermédiaires manquants, idempotent si déjà existant',
+    {
+      user: z.string().describe('Email du compte M365'),
+      path: z.string().describe('Nom ou chemin du dossier à créer'),
+    },
+    async ({ user, path }) => {
+      const { id, created } = await ensureFolderPath(path, user);
+      return ok({ id, path, created });
     }
   );
 

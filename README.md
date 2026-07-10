@@ -7,7 +7,7 @@ Serveur MCP (Model Context Protocol) exposé en HTTP distant, protégé par OAut
 | Module | Tools |
 |---|---|
 | GitHub | `github_auth`, `github_repos`, `github_issues`, `github_issue_get`, `github_issue_create`, `github_issue_comment`, `github_file` |
-| Microsoft 365 / Graph | `m365_auth`, `m365_mail_folders`, `m365_mail_list`, `m365_mail_get`, `m365_mail_move`, `m365_mail_delete`, `m365_calendar`, `m365_contacts`, `m365_todo_lists`, `m365_todo_tasks`, `m365_todo_task_create`, `m365_todo_task_update`, `m365_todo_task_delete` |
+| Microsoft 365 / Graph | `m365_auth`, `m365_mail_folders`, `m365_mail_folder_exists`, `m365_mail_folder_create`, `m365_mail_list`, `m365_mail_get`, `m365_mail_move`, `m365_mail_delete`, `m365_calendar`, `m365_contacts`, `m365_todo_lists`, `m365_todo_tasks`, `m365_todo_task_create`, `m365_todo_task_update`, `m365_todo_task_delete` |
 | Google | `google_auth`, `google_auth_url`, `google_auth_callback`, `google_contacts`, `google_mail_profile`, `google_mail_list`, `google_mail_get`, `google_calendar_list`, `google_calendar_events` |
 | OVH | `ovh_auth`, `ovh_list_domains`, `ovh_domain_info`, `ovh_list_dns_records`, `ovh_get_dns_record` |
 | o2switch (cPanel) | `o2switch_auth`, `o2switch_email_list`, `o2switch_email_create`, `o2switch_email_delete`, `o2switch_email_forwarders`, `o2switch_mailing_lists`, `o2switch_ftp_list`, `o2switch_ftp_create`, `o2switch_ftp_delete`, `o2switch_db_list`, `o2switch_db_create`, `o2switch_db_users`, `o2switch_db_user_create`, `o2switch_domains`, `o2switch_subdomain_list`, `o2switch_subdomain_create`, `o2switch_subdomain_delete`, `o2switch_dns_zone`, `o2switch_ssl_list`, `o2switch_ssl_autossl`, `o2switch_git_repos`, `o2switch_php_version`, `o2switch_nodejs_apps`, `o2switch_apps_list` |
