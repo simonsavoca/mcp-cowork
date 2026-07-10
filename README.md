@@ -12,7 +12,7 @@ Serveur MCP (Model Context Protocol) exposé en HTTP distant, protégé par OAut
 | OVH | `ovh_auth`, `ovh_list_domains`, `ovh_domain_info`, `ovh_list_dns_records`, `ovh_get_dns_record` |
 | o2switch (cPanel) | `o2switch_auth`, `o2switch_email_list`, `o2switch_email_create`, `o2switch_email_delete`, `o2switch_email_forwarders`, `o2switch_mailing_lists`, `o2switch_ftp_list`, `o2switch_ftp_create`, `o2switch_ftp_delete`, `o2switch_db_list`, `o2switch_db_create`, `o2switch_db_users`, `o2switch_db_user_create`, `o2switch_domains`, `o2switch_subdomain_list`, `o2switch_subdomain_create`, `o2switch_subdomain_delete`, `o2switch_dns_zone`, `o2switch_ssl_list`, `o2switch_ssl_autossl`, `o2switch_git_repos`, `o2switch_php_version`, `o2switch_nodejs_apps`, `o2switch_apps_list` |
 | Steam | `steam_auth`, `steam_profile`, `steam_level`, `steam_games`, `steam_recent`, `steam_achievements`, `steam_friends` |
-| WhatsApp | `whatsapp_auth`, `whatsapp_recent`, `whatsapp_unread`, `whatsapp_send`, `whatsapp_mark_read`, `whatsapp_join_group` |
+| WhatsApp | `whatsapp_auth`, `whatsapp_recent`, `whatsapp_unread`, `whatsapp_send`, `whatsapp_mark_read`, `whatsapp_archive`, `whatsapp_join_group` |
 | Pronote | `pronote_grades`, `pronote_timetable`, `pronote_absences`, `pronote_homework`, `pronote_bulletin` |
 | NEO (ENT scolaire) | `neo_auth`, `neo_messages`, `neo_inbox`, `neo_inbox_count`, `neo_message_get`, `neo_message_delete`, `neo_homework`, `neo_agenda` |
 | PRIM / IDFM (transport) | `prim_auth`, `prim_search_stop`, `prim_search_line`, `prim_line_routes`, `prim_line_stops`, `prim_departures`, `prim_disruptions` |

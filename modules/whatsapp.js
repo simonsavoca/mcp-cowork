@@ -164,6 +164,25 @@ function registerWhatsAppTools(server) {
     );
 
     server.tool(
+        'whatsapp_archive',
+        'Archiver (ou désarchiver) une conversation WhatsApp, recherchée par nom ou jid — ' +
+        'synchronisé sur tous les appareils, réversible.',
+        {
+            query: z.string().describe('Nom du contact/groupe (sous-chaîne) ou jid exact — ex: "Virginie"'),
+            unarchive: z.boolean().optional().describe('true pour désarchiver au lieu d\'archiver'),
+        },
+        async ({ query, unarchive }) => {
+            const { status, body } = await ipcPost('/chat/archive', { query, archive: !unarchive });
+            if (status === 409) {
+                const list = body.matches.map(m => `- ${m.name}${m.isGroup ? ' (groupe)' : ''} — ${m.jid}`).join('\n');
+                return ok(`Plusieurs correspondances pour "${query}", précise (nom exact ou jid) :\n${list}`);
+            }
+            if (status !== 200) return ok(`Erreur : ${body.error}`);
+            return ok(body.msg);
+        }
+    );
+
+    server.tool(
         'whatsapp_join_group',
         'Rejoindre un groupe WhatsApp via un lien d\'invitation',
         {

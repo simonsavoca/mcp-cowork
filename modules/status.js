@@ -38,7 +38,7 @@ const MODULES = [
   },
   {
     name: "WhatsApp",
-    tools: ["whatsapp_auth", "whatsapp_recent", "whatsapp_unread", "whatsapp_send", "whatsapp_mark_read", "whatsapp_join_group"],
+    tools: ["whatsapp_auth", "whatsapp_recent", "whatsapp_unread", "whatsapp_send", "whatsapp_mark_read", "whatsapp_archive", "whatsapp_join_group"],
     requiredEnv: [],
     externalDep: "whatsapp-daemon (pm2 process)",
   },
