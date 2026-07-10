@@ -50,6 +50,7 @@ module.exports = {
         SYNOLOGY_NAS_PORT: process.env.SYNOLOGY_NAS_PORT,
         SYNOLOGY_NAS_USER: process.env.SYNOLOGY_NAS_USER,
         SYNOLOGY_NAS_PASSWORD: process.env.SYNOLOGY_NAS_PASSWORD,
+        
         PUSHOVER_APP_TOKEN: process.env.PUSHOVER_APP_TOKEN,
         PUSHOVER_USER_KEY: process.env.PUSHOVER_USER_KEY,
 
