@@ -10,6 +10,7 @@ const { z } = require("zod");
 const { provider: oauthProvider } = require("./modules/oauth");
 const { authGate } = require("./modules/authGate");
 const { registerStatusRoute } = require("./modules/status");
+const { registerPrivacyRoutes } = require("./modules/privacy");
 const { createServer } = require("./modules/registry");
 
 const PUBLIC_URL = process.env.MCP_PUBLIC_URL;
@@ -116,6 +117,9 @@ registerStatusRoute(app, {
   port: PORT,
   version: pkg.version,
 });
+
+// Pages de confidentialité publiques (hors authGate) — requises par certaines plateformes (Meta).
+registerPrivacyRoutes(app);
 
 app.listen(PORT, () => {
   process.stderr.write(`mcp-cowork listening on http://localhost:${PORT}/mcp\n`);

@@ -9,6 +9,7 @@ Serveur MCP (Model Context Protocol) exposé en HTTP distant, protégé par OAut
 | GitHub | `github_auth`, `github_repos`, `github_issues`, `github_issue_get`, `github_issue_create`, `github_issue_comment`, `github_file` |
 | Microsoft 365 / Graph | `m365_auth`, `m365_mail_folders`, `m365_mail_folder_exists`, `m365_mail_folder_create`, `m365_mail_list`, `m365_mail_get`, `m365_mail_move`, `m365_mail_delete`, `m365_calendar`, `m365_contacts`, `m365_todo_lists`, `m365_todo_tasks`, `m365_todo_task_create`, `m365_todo_task_update`, `m365_todo_task_delete` |
 | Google | `google_auth`, `google_auth_url`, `google_auth_callback`, `google_contacts`, `google_mail_profile`, `google_mail_list`, `google_mail_get`, `google_calendar_list`, `google_calendar_events` |
+| Facebook / Meta | `facebook_auth`, `facebook_auth_url`, `facebook_auth_callback`, `facebook_profile`, `facebook_posts`, `facebook_pages`, `facebook_page_feed`, `facebook_page_post`, `facebook_page_photo`, `facebook_page_post_update`, `facebook_page_post_delete`, `facebook_page_comments`, `facebook_page_comment_reply`, `facebook_page_insights` |
 | OVH | `ovh_auth`, `ovh_list_domains`, `ovh_domain_info`, `ovh_list_dns_records`, `ovh_get_dns_record` |
 | o2switch (cPanel) | `o2switch_auth`, `o2switch_email_list`, `o2switch_email_create`, `o2switch_email_delete`, `o2switch_email_forwarders`, `o2switch_mailing_lists`, `o2switch_ftp_list`, `o2switch_ftp_create`, `o2switch_ftp_delete`, `o2switch_db_list`, `o2switch_db_create`, `o2switch_db_users`, `o2switch_db_user_create`, `o2switch_domains`, `o2switch_subdomain_list`, `o2switch_subdomain_create`, `o2switch_subdomain_delete`, `o2switch_dns_zone`, `o2switch_ssl_list`, `o2switch_ssl_autossl`, `o2switch_git_repos`, `o2switch_php_version`, `o2switch_nodejs_apps`, `o2switch_apps_list` |
 | Steam | `steam_auth`, `steam_profile`, `steam_level`, `steam_games`, `steam_recent`, `steam_achievements`, `steam_friends` |
@@ -60,6 +61,7 @@ pm2 start ecosystem.config.js
 | `O2SWITCH_HOST`, `O2SWITCH_API_USER`, `O2SWITCH_API_TOKEN`, `O2SWITCH_PASSWORD` | cPanel o2switch | non |
 | `STEAM_API_KEY`, `STEAM_ID` | Steam Web API | non |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` | OAuth2 Google (Gmail, Calendar, Contacts) | non |
+| `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `FACEBOOK_USER_TOKEN`, `FACEBOOK_API_VERSION` | Facebook/Meta Graph (compte perso en lecture, gestion des Pages) — token de bootstrap via Graph API Explorer puis `facebook_auth_callback` (stocké dans `data/facebook_token.json`) | non |
 | `NEO_ENT_URL`, `EDUCONNECT_LOGIN`, `EDUCONNECT_PASSWORD`, `PRONOTE_QR_PIN` | ENT scolaire NEO + Pronote (EduConnect partagé) | non |
 | `PRIM_API_KEY` | API PRIM/IDFM transport | non |
 | `SYNOLOGY_NAS_HOST`, `SYNOLOGY_NAS_PORT`, `SYNOLOGY_NAS_USER`, `SYNOLOGY_NAS_PASSWORD` | NAS Synology DSM | non |
@@ -88,9 +90,18 @@ Une page de diagnostic web est disponible à l'adresse `/status` (protégée par
 - **Sessions MCP** : nombre de sessions Streamable HTTP actives (clients connectés via Claude Desktop/Claude.ai)
 - **OAuth** : nombre de clients enregistrés, d'access tokens et de refresh tokens en mémoire (rappel : état perdu au restart)
 - **authGate** : nombre de sessions passphrase validées persistées sur disque
-- **Modules & Outils** : liste des 14 modules avec statut configuré/non-configuré selon les variables d'environnement présentes
+- **Modules & Outils** : liste des 15 modules avec statut configuré/non-configuré selon les variables d'environnement présentes
 
 La page est en **lecture seule** — aucune action déclenchable. Accès : `https://[MCP_PUBLIC_URL]/status` avec la même passphrase que la protection OAuth.
+
+## Pages de confidentialité (`/privacy`)
+
+Des pages de confidentialité **publiques** (hors passphrase) sont exposées pour les plateformes qui l'exigent (ex. Meta requiert une Privacy Policy URL pour l'app Facebook) :
+
+- `/privacy` — politique générique
+- `/privacy/:service` — politique par service (ex. `/privacy/facebook`)
+
+Contenu adapté à un usage strictement personnel, sans garantie. À renseigner comme Privacy Policy URL de l'app Meta : `https://[MCP_PUBLIC_URL]/privacy/facebook`.
 
 ## Dépendances externes
 

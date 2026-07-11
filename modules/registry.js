@@ -2,6 +2,7 @@ const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
 const { registerGitHubTools }   = require("./github");
 const { registerGraphTools }    = require("./graph");
 const { registerGoogleTools }   = require("./google");
+const { registerFacebookTools } = require("./facebook");
 const { registerOvhTools }      = require("./ovh");
 const { registerSteamTools }    = require("./steam");
 const { registerWhatsAppTools } = require("./whatsapp");
@@ -27,6 +28,7 @@ function createServer() {
   registerGitHubTools(server);
   registerGraphTools(server);
   registerGoogleTools(server);
+  registerFacebookTools(server);
   registerOvhTools(server);
   registerSteamTools(server);
   registerWhatsAppTools(server);

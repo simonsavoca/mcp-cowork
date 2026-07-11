@@ -21,6 +21,13 @@ const MODULES = [
     optionalEnv: ["GOOGLE_REFRESH_TOKEN"],
   },
   {
+    name: "Facebook / Meta",
+    tools: ["facebook_auth", "facebook_auth_url", "facebook_auth_callback", "facebook_profile", "facebook_posts", "facebook_pages", "facebook_page_feed", "facebook_page_post", "facebook_page_photo", "facebook_page_post_update", "facebook_page_post_delete", "facebook_page_comments", "facebook_page_comment_reply", "facebook_page_insights"],
+    requiredEnv: ["FACEBOOK_APP_ID", "FACEBOOK_APP_SECRET"],
+    optionalEnv: ["FACEBOOK_USER_TOKEN", "FACEBOOK_API_VERSION"],
+    privacy: "facebook",
+  },
+  {
     name: "OVH",
     tools: ["ovh_auth", "ovh_list_domains", "ovh_domain_info", "ovh_list_dns_records", "ovh_get_dns_record"],
     requiredEnv: ["OVH_MAIN_APP_KEY", "OVH_MAIN_APP_SECRET"],
@@ -126,6 +133,7 @@ function renderStatusPage(data) {
     const configClass = m.isConfigured ? 'configured' : 'not-configured';
     const note = m.note ? ` <span class="note">(${escapeHtml(m.note)})</span>` : '';
     const externalNote = m.externalDep ? ` <span class="external">[${escapeHtml(m.externalDep)}]</span>` : '';
+    const privacyLink = m.privacy ? ` <a class="privacy-link" href="/privacy/${escapeHtml(m.privacy)}" target="_blank" rel="noopener">📄 confidentialité</a>` : '';
     const toolRows = m.toolDetails.map(t => `
           <tr>
             <td><code>${escapeHtml(t.name)}</code></td>
@@ -134,7 +142,7 @@ function renderStatusPage(data) {
     return `
     <tr>
       <td><strong>${escapeHtml(m.name)}</strong></td>
-      <td><span class="${configClass}">${configStatus}</span>${note}${externalNote}</td>
+      <td><span class="${configClass}">${configStatus}</span>${note}${externalNote}${privacyLink}</td>
       <td>
         <details>
           <summary>${m.toolCount} tool${m.toolCount > 1 ? 's' : ''}</summary>
@@ -233,6 +241,7 @@ function renderStatusPage(data) {
     .not-configured { color: #ef5350; font-weight: 500; }
     .note { font-size: 12px; color: #8b93a3; }
     .external { font-size: 12px; color: #64b5f6; }
+    .privacy-link { font-size: 12px; margin-left: 6px; white-space: nowrap; }
     .info-box {
       background: #1a4d2e;
       border: 1px solid #25d366;
@@ -413,6 +422,7 @@ function registerStatusRoute(app, { transports, oauth, gateSessionsPath, port, v
         })),
         note: m.note,
         externalDep: m.externalDep,
+        privacy: m.privacy,
       };
     });
 
