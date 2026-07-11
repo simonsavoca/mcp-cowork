@@ -104,47 +104,41 @@ async function findFolderId(nameOrId, user) {
   return null;
 }
 
-async function resolveFolderId(nameOrId, user) {
-  const id = await findFolderId(nameOrId, user);
-  if (!id) throw new Error(`Dossier introuvable : "${nameOrId}"`);
-  return id;
+// Rejette une valeur qui ressemble à un chemin humain (ex: "Boîte de réception/Achat").
+// Les opérations sur les dossiers attendent un ID (ou un nom canonique Graph : inbox, archive…).
+// Pour obtenir un ID à partir d'un nom/chemin, utiliser m365_mail_folder_exists.
+function assertFolderId(value) {
+  if (value.includes('/')) {
+    throw new Error(
+      `"${value}" ressemble à un chemin, pas à un ID de dossier. ` +
+      `Récupère l'ID via m365_mail_folder_exists (ou m365_mail_folders), puis réessaie.`
+    );
+  }
 }
 
-// Crée un dossier (ou un chemin "A/B/C") en créant les niveaux intermédiaires manquants.
-// Parcours strictement top-down (pas de recherche récursive) pour rester déterministe.
-// Idempotent : renvoie { id, created } où `created` indique si la feuille a été créée.
-async function ensureFolderPath(path, user) {
-  const parts = path.split('/').map(p => p.trim()).filter(Boolean);
-  if (!parts.length) throw new Error('Chemin de dossier vide');
+// Crée un dossier nommé `name` sous `parentId` (racine si absent).
+// Idempotent : si un dossier de même nom existe déjà sous ce parent, il est renvoyé tel quel.
+// Renvoie { id, displayName, parentFolderId, created }.
+async function createFolder(name, parentId, user) {
+  const base = parentId
+    ? `/users/${user}/mailFolders/${encodeURIComponent(parentId)}/childFolders`
+    : `/users/${user}/mailFolders`;
 
-  let currentId = null;
-  let created = false;
+  const data = await graph(`${base}?$top=200&$select=id,displayName,parentFolderId`);
+  const needle = name.toLowerCase();
+  const existing = (data.value || []).find(f => f.displayName.toLowerCase() === needle);
 
-  for (const part of parts) {
-    const needle = part.toLowerCase();
-    const listUrl = currentId
-      ? `/users/${user}/mailFolders/${encodeURIComponent(currentId)}/childFolders?$top=200&$select=id,displayName`
-      : `/users/${user}/mailFolders?$top=200&$select=id,displayName`;
-    const data = await graph(listUrl);
-    const existing = (data.value || []).find(f => f.displayName.toLowerCase() === needle);
+  const leaf = existing || await graph(base, {
+    method: 'POST',
+    body: JSON.stringify({ displayName: name }),
+  });
 
-    if (existing) {
-      currentId = existing.id;
-      created = false;
-    } else {
-      const createUrl = currentId
-        ? `/users/${user}/mailFolders/${encodeURIComponent(currentId)}/childFolders`
-        : `/users/${user}/mailFolders`;
-      const result = await graph(createUrl, {
-        method: 'POST',
-        body: JSON.stringify({ displayName: part }),
-      });
-      currentId = result.id;
-      created = true;
-    }
-  }
-
-  return { id: currentId, created };
+  return {
+    id: leaf.id,
+    displayName: leaf.displayName,
+    parentFolderId: leaf.parentFolderId,
+    created: !existing,
+  };
 }
 
 function assertValidMessageId(id) {
@@ -192,16 +186,16 @@ function registerGraphTools(server) {
 
   server.tool(
     'm365_mail_folders',
-    'Liste les dossiers mail M365 (1 niveau)',
+    'Liste les dossiers mail M365 (1 niveau). Omets `folder` pour la racine ; descends en repassant l\'`id` d\'un dossier retourné.',
     {
       user: z.string().describe('Email du compte M365'),
-      folder: z.string().optional().describe('Dossier parent (nom ou ID) — omis = racine'),
+      folder: z.string().optional().describe('ID du dossier parent (ou nom canonique : inbox, archive…) — omis = racine. Pas de chemin.'),
     },
     async ({ user, folder } = {}) => {
       let url;
       if (folder) {
-        const folderId = await resolveFolderId(folder, user);
-        url = `/users/${user}/mailFolders/${encodeURIComponent(folderId)}/childFolders?$top=100&$select=id,displayName,totalItemCount,unreadItemCount`;
+        assertFolderId(folder);
+        url = `/users/${user}/mailFolders/${encodeURIComponent(folder)}/childFolders?$top=100&$select=id,displayName,totalItemCount,unreadItemCount`;
       } else {
         url = `/users/${user}/mailFolders?$top=100&$select=id,displayName,totalItemCount,unreadItemCount`;
       }
@@ -225,14 +219,16 @@ function registerGraphTools(server) {
 
   server.tool(
     'm365_mail_folder_create',
-    'Crée un dossier mail M365 (par nom ou chemin, ex: "Associations/Bodega") ; crée aussi les dossiers intermédiaires manquants, idempotent si déjà existant',
+    'Crée un dossier mail M365 nommé `name` sous `parent_id` (racine si absent). Idempotent : renvoie le dossier existant s\'il porte déjà ce nom. Un seul niveau — pour imbriquer, crée le parent puis réutilise son id.',
     {
       user: z.string().describe('Email du compte M365'),
-      path: z.string().describe('Nom ou chemin du dossier à créer'),
+      name: z.string().describe('Nom (displayName) du dossier à créer'),
+      parent_id: z.string().optional().describe('ID du dossier parent (via m365_mail_folders / m365_mail_folder_exists) — omis = racine. Pas de chemin.'),
     },
-    async ({ user, path }) => {
-      const { id, created } = await ensureFolderPath(path, user);
-      return ok({ id, path, created });
+    async ({ user, name, parent_id }) => {
+      if (parent_id) assertFolderId(parent_id);
+      const result = await createFolder(name, parent_id, user);
+      return ok(result);
     }
   );
 
@@ -241,13 +237,13 @@ function registerGraphTools(server) {
     'Liste les messages d\'un dossier mail M365',
     {
       user: z.string().describe('Email du compte M365'),
-      folder: z.string().optional().describe('Nom ou ID du dossier (défaut : inbox)'),
+      folder: z.string().optional().describe('ID du dossier (ou nom canonique : inbox, archive…) — défaut : inbox. Pas de chemin.'),
       limit: z.number().int().min(1).max(50).optional().describe('Nombre de messages (défaut : 20)'),
       filter: z.string().optional().describe('Filtre OData, ex: isRead eq false'),
     },
     async ({ user, folder = 'inbox', limit = 20, filter } = {}) => {
-      const folderId = await resolveFolderId(folder, user);
-      let url = `/users/${user}/mailFolders/${encodeURIComponent(folderId)}/messages?$top=${limit}&$select=id,subject,from,receivedDateTime,isRead,hasAttachments,bodyPreview`;
+      assertFolderId(folder);
+      let url = `/users/${user}/mailFolders/${encodeURIComponent(folder)}/messages?$top=${limit}&$select=id,subject,from,receivedDateTime,isRead,hasAttachments,bodyPreview`;
       if (filter) url += `&$filter=${encodeURIComponent(filter)}`;
       url += '&$orderby=receivedDateTime desc';
       const data = await graph(url);
@@ -272,20 +268,20 @@ function registerGraphTools(server) {
 
   server.tool(
     'm365_mail_move',
-    'Déplace un message vers un dossier (accepte un nom humain ou un ID)',
+    'Déplace un message vers un dossier identifié par son ID (via m365_mail_folders / m365_mail_folder_exists)',
     {
       user: z.string().describe('Email du compte M365'),
       id: z.string().describe('ID du message'),
-      destination: z.string().describe('Nom ou ID du dossier de destination, ex: "Associations/Bodega"'),
+      destination_id: z.string().describe('ID du dossier de destination (ou nom canonique : archive, deleteditems…). Pas de chemin.'),
     },
-    async ({ user, id, destination }) => {
+    async ({ user, id, destination_id }) => {
       assertValidMessageId(id);
-      const destinationId = await resolveFolderId(destination, user);
+      assertFolderId(destination_id);
       const result = await graph(`/users/${user}/messages/${encodeURIComponent(id)}/move`, {
         method: 'POST',
-        body: JSON.stringify({ destinationId }),
+        body: JSON.stringify({ destinationId: destination_id }),
       });
-      return ok({ moved: true, newId: result.id, folder: destination });
+      return ok({ moved: true, newId: result.id, destination_id });
     }
   );
 
