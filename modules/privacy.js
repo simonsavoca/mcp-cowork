@@ -22,6 +22,11 @@ const POLICIES = {
     intro:
       "Cette intégration LinkedIn est un outil privé, à usage strictement personnel, utilisé par son unique propriétaire pour consulter son propre profil LinkedIn et y publier ses propres posts. Elle n'est pas destinée à d'autres utilisateurs.",
   },
+  google: {
+    title: "Politique de confidentialité — Intégration Google",
+    intro:
+      "Cette intégration Google est un outil privé, à usage strictement personnel, utilisé par son unique propriétaire pour accéder à ses propres données Google (Gmail, Agenda, Contacts). Elle n'est pas destinée à d'autres utilisateurs.",
+  },
 };
 
 const COMMON_CLAUSES = [

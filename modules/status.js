@@ -19,6 +19,8 @@ const MODULES = [
     tools: ["google_auth", "google_auth_url", "google_contacts", "google_mail_profile", "google_mail_list", "google_mail_get", "google_calendar_list", "google_calendar_events", "google_calendar_event_create", "google_calendar_event_update", "google_calendar_event_delete"],
     requiredEnv: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
     optionalEnv: ["GOOGLE_REFRESH_TOKEN"],
+    oauthRedirect: "google",
+    privacy: "google",
   },
   {
     name: "Facebook / Meta",
@@ -26,6 +28,7 @@ const MODULES = [
     requiredEnv: ["FACEBOOK_APP_ID", "FACEBOOK_APP_SECRET"],
     optionalEnv: ["FACEBOOK_USER_TOKEN", "FACEBOOK_API_VERSION"],
     privacy: "facebook",
+    oauthRedirect: "facebook",
   },
   {
     name: "LinkedIn",
@@ -33,6 +36,7 @@ const MODULES = [
     requiredEnv: ["LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET"],
     optionalEnv: ["LINKEDIN_ACCESS_TOKEN", "LINKEDIN_API_VERSION"],
     privacy: "linkedin",
+    oauthRedirect: "linkedin",
   },
   {
     name: "OVH",
@@ -129,9 +133,38 @@ function renderStatusPage(data) {
     port,
     activeSessions,
     oauthStats,
+    oauthProviders,
     gateSessionsCount,
     modules,
   } = data;
+
+  const urlRow = (label, url) => url ? `
+        <div class="redirect-row">
+          <span class="redirect-name">${escapeHtml(label)}</span>
+          <code class="redirect-url">${escapeHtml(url)}</code>
+          <button type="button" class="copy-btn" data-url="${escapeHtml(url)}">Copier</button>
+        </div>` : '';
+
+  const redirectSection = (oauthProviders && oauthProviders.length)
+    ? (oauthProviders.every((p) => p.redirectUrl)
+        ? `
+      <p style="font-size: 13px; color: #8b93a3; margin-bottom: 12px;">
+        Lors de la création de chaque app OAuth, renseignez la <strong>redirect URI autorisée</strong> et
+        l'<strong>URL de politique de confidentialité</strong> ci-dessous, dans la console développeur
+        correspondante (Google Cloud Console, Meta for Developers, LinkedIn Developer Portal).
+      </p>
+      ${oauthProviders.map((p) => `
+      <div class="provider-group">
+        <h3 class="provider-title">${escapeHtml(p.name)}</h3>
+        ${urlRow('Redirect URI', p.redirectUrl)}
+        ${urlRow('Confidentialité', p.privacyUrl)}
+      </div>`).join('')}`
+        : `
+      <div class="warn-box">
+        ⚠️ <strong>MCP_PUBLIC_URL n'est pas définie.</strong> Impossible de construire les URLs OAuth
+        (redirect URI et confidentialité). Définis <code>MCP_PUBLIC_URL</code> puis redémarre le serveur.
+      </div>`)
+    : '';
 
   const uptimeText = uptime < 60 ? `${uptime.toFixed(1)}s` : uptime < 3600 ? `${(uptime / 60).toFixed(1)}m` : `${(uptime / 3600).toFixed(1)}h`;
 
@@ -269,6 +302,48 @@ function renderStatusPage(data) {
     }
     a { color: #64b5f6; text-decoration: none; }
     a:hover { text-decoration: underline; }
+    .provider-group { margin-bottom: 18px; }
+    .provider-group:last-child { margin-bottom: 0; }
+    .provider-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e5e7eb;
+      margin-bottom: 8px;
+    }
+    .redirect-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      background: #0f1115;
+      border: 1px solid #262b35;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+    .redirect-name { font-weight: 600; min-width: 120px; }
+    .redirect-url {
+      flex: 1;
+      min-width: 240px;
+      color: #25d366;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      word-break: break-all;
+    }
+    .copy-btn {
+      background: #171a21;
+      color: #25d366;
+      border: 1px solid #25d366;
+      border-radius: 5px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .copy-btn:hover { background: #25d366; color: #0f1115; }
+    .copy-btn.copied { background: #25d366; color: #0f1115; border-color: #25d366; }
     .footer {
       text-align: center;
       color: #8b93a3;
@@ -343,6 +418,12 @@ function renderStatusPage(data) {
       </div>
     </div>
 
+    <!-- Redirect URIs OAuth -->
+    <div class="section">
+      <h2>↩️ Redirect URIs OAuth</h2>
+      ${redirectSection}
+    </div>
+
     <!-- authGate -->
     <div class="section">
       <h2>🔑 Contrôle d'accès (authGate)</h2>
@@ -383,6 +464,44 @@ function renderStatusPage(data) {
       <p>Page de diagnostic en lecture seule. Aucune donnée sensible (secrets, tokens) n'est affichée.</p>
     </div>
   </div>
+  <script>
+    (function () {
+      function flash(btn) {
+        var original = btn.textContent;
+        btn.textContent = '✓ Copié';
+        btn.classList.add('copied');
+        setTimeout(function () {
+          btn.textContent = original;
+          btn.classList.remove('copied');
+        }, 1500);
+      }
+      function fallbackCopy(text) {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+      document.querySelectorAll('.copy-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var url = btn.dataset.url;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(function () { flash(btn); }, function () {
+              fallbackCopy(url);
+              flash(btn);
+            });
+          } else {
+            fallbackCopy(url);
+            flash(btn);
+          }
+        });
+      });
+    })();
+  </script>
 </body>
 </html>`;
 }
@@ -416,6 +535,19 @@ function registerStatusRoute(app, { transports, oauth, gateSessionsPath, port, v
 
     const oauthStats = oauth.getStats();
 
+    const publicUrl = process.env.MCP_PUBLIC_URL;
+    const oauthProviders = MODULES
+      .filter((m) => m.oauthRedirect)
+      .map((m) => ({
+        name: m.name,
+        redirectUrl: publicUrl
+          ? new URL(`/redirect/${m.oauthRedirect}`, publicUrl).toString()
+          : null,
+        privacyUrl: publicUrl && m.privacy
+          ? new URL(`/privacy/${m.privacy}`, publicUrl).toString()
+          : null,
+      }));
+
     const toolDescriptions = getToolDescriptions();
     const modules = MODULES.map((m) => {
       const isConfigured = m.requiredEnv.every((v) => process.env[v]);
@@ -441,6 +573,7 @@ function registerStatusRoute(app, { transports, oauth, gateSessionsPath, port, v
       port: escapeHtml(String(port)),
       activeSessions: transports.size,
       oauthStats,
+      oauthProviders,
       gateSessionsCount,
       modules,
     };
