@@ -28,6 +28,13 @@ const MODULES = [
     privacy: "facebook",
   },
   {
+    name: "LinkedIn",
+    tools: ["linkedin_auth", "linkedin_auth_url", "linkedin_profile", "linkedin_post_create"],
+    requiredEnv: ["LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET"],
+    optionalEnv: ["LINKEDIN_ACCESS_TOKEN", "LINKEDIN_API_VERSION"],
+    privacy: "linkedin",
+  },
+  {
     name: "OVH",
     tools: ["ovh_auth", "ovh_list_domains", "ovh_domain_info", "ovh_list_dns_records", "ovh_get_dns_record"],
     requiredEnv: ["OVH_MAIN_APP_KEY", "OVH_MAIN_APP_SECRET"],

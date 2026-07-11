@@ -3,6 +3,7 @@ const { registerGitHubTools }   = require("./github");
 const { registerGraphTools }    = require("./graph");
 const { registerGoogleTools }   = require("./google");
 const { registerFacebookTools } = require("./facebook");
+const { registerLinkedinTools } = require("./linkedin");
 const { registerOvhTools }      = require("./ovh");
 const { registerSteamTools }    = require("./steam");
 const { registerWhatsAppTools } = require("./whatsapp");
@@ -29,6 +30,7 @@ function createServer() {
   registerGraphTools(server);
   registerGoogleTools(server);
   registerFacebookTools(server);
+  registerLinkedinTools(server);
   registerOvhTools(server);
   registerSteamTools(server);
   registerWhatsAppTools(server);

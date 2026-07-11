@@ -11,6 +11,8 @@ const { provider: oauthProvider } = require("./modules/oauth");
 const { authGate } = require("./modules/authGate");
 const { registerStatusRoute } = require("./modules/status");
 const { registerPrivacyRoutes } = require("./modules/privacy");
+const { registerOAuthRedirectHandler, registerOAuthRedirectRoute } = require("./modules/oauthRedirect");
+const { handleLinkedinRedirect } = require("./modules/linkedin");
 const { createServer } = require("./modules/registry");
 
 const PUBLIC_URL = process.env.MCP_PUBLIC_URL;
@@ -120,6 +122,12 @@ registerStatusRoute(app, {
 
 // Pages de confidentialité publiques (hors authGate) — requises par certaines plateformes (Meta).
 registerPrivacyRoutes(app);
+
+// Redirection OAuth automatisée par service (ex. LinkedIn) — hors authGate : le navigateur
+// y est redirigé directement par le fournisseur après consentement, sans cookie francis_gate.
+// La protection vient du paramètre state anti-CSRF + du client_secret détenu par le serveur.
+registerOAuthRedirectHandler("linkedin", handleLinkedinRedirect);
+registerOAuthRedirectRoute(app);
 
 app.listen(PORT, () => {
   process.stderr.write(`mcp-cowork listening on http://localhost:${PORT}/mcp\n`);

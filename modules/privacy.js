@@ -17,6 +17,11 @@ const POLICIES = {
     intro:
       "Cette intégration Facebook/Meta est un outil privé, à usage strictement personnel, utilisé par son unique propriétaire pour gérer son propre compte et les Pages qu'il administre. Elle n'est pas destinée à d'autres utilisateurs.",
   },
+  linkedin: {
+    title: "Politique de confidentialité — Intégration LinkedIn",
+    intro:
+      "Cette intégration LinkedIn est un outil privé, à usage strictement personnel, utilisé par son unique propriétaire pour consulter son propre profil LinkedIn et y publier ses propres posts. Elle n'est pas destinée à d'autres utilisateurs.",
+  },
 };
 
 const COMMON_CLAUSES = [
