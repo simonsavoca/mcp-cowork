@@ -2,6 +2,7 @@ const { z } = require('zod');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const { renderResultPage } = require('./oauthRedirect');
 
 const PEOPLE_API = 'https://people.googleapis.com/v1';
 const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1';
@@ -19,6 +20,11 @@ const TOKEN_STORE_PATH = path.join(__dirname, '..', 'data', 'google_token.json')
 
 let _token = null, _tokenExpiry = 0, _refreshPromise = null;
 let _pkceVerifier = null;
+let _pendingState = null;
+
+function redirectUri() {
+  return new URL('/redirect/google', process.env.MCP_PUBLIC_URL).toString();
+}
 
 // Sous Claude Desktop, user_config n'est pas réinscriptible par le serveur (pas d'équivalent .mcp.json).
 // Le refresh token rafraîchi est donc mis en cache dans data/google_token.json, propre à ce bundle,
@@ -107,6 +113,45 @@ function generatePKCE() {
   return { code_verifier: verifier, code_challenge: challenge };
 }
 
+// Échange le code contre un refresh token (PKCE) et le persiste dans data/google_token.json.
+// Utilisé par le handler de redirection automatique (handleGoogleRedirect).
+async function exchangeCodeForToken(code) {
+  if (!_pkceVerifier) {
+    throw new Error('Aucun challenge PKCE en cours — relance google_auth_url');
+  }
+
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    throw new Error('GOOGLE_CLIENT_ID ou GOOGLE_CLIENT_SECRET manquante');
+  }
+
+  const res = await fetch(TOKEN_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri(),
+      code_verifier: _pkceVerifier,
+    }),
+  });
+
+  const data = await res.json();
+  if (!data.refresh_token) throw new Error(`Token exchange échouée: ${JSON.stringify(data)}`);
+
+  storeRefreshToken(data.refresh_token);
+
+  _token = null;
+  _tokenExpiry = 0;
+  _pkceVerifier = null;
+
+  const profile = await gapi(`${GMAIL_API}/users/me/profile`);
+  return { profile };
+}
+
 function registerGoogleTools(server) {
   server.tool(
     'google_auth',
@@ -132,87 +177,39 @@ function registerGoogleTools(server) {
 
   server.tool(
     'google_auth_url',
-    'Générer une URL OAuth2 pour obtenir le refresh token Google',
+    "Génère l'URL d'autorisation Google — l'authentification se termine automatiquement côté serveur (redirection), pas besoin de revenir dans le chat",
     {},
     async () => {
       const clientId = process.env.GOOGLE_CLIENT_ID;
       if (!clientId) return ok({ error: 'GOOGLE_CLIENT_ID manquante' });
+      if (!process.env.MCP_PUBLIC_URL) return ok({ error: 'MCP_PUBLIC_URL manquante' });
 
       const challenge = generatePKCE();
       _pkceVerifier = challenge.code_verifier;
 
+      const state = crypto.randomBytes(16).toString('hex');
+      _pendingState = state;
+
       const params = new URLSearchParams({
         client_id: clientId,
-        redirect_uri: 'http://localhost',
+        redirect_uri: redirectUri(),
         response_type: 'code',
         scope: GOOGLE_SCOPES,
         access_type: 'offline',
         prompt: 'consent',
         code_challenge: challenge.code_challenge,
         code_challenge_method: 'S256',
+        state,
       });
 
-      const authUrl = `${AUTHORIZE_ENDPOINT}?${params.toString()}`;
       return ok({
-        url: authUrl,
-        message: 'Ouvre cette URL dans ton navigateur. Après acceptation, Google te redirigera vers http://localhost?code=XXX. Copie le code (la partie après "code=") et appelle google_auth_callback avec.',
+        url: `${AUTHORIZE_ENDPOINT}?${params.toString()}`,
+        message:
+          "Ouvre cette URL, connecte-toi et autorise l'app. L'authentification se termine automatiquement (redirection serveur vers MCP_PUBLIC_URL/redirect/google) — inutile de copier un code. Vérifie ensuite avec google_auth. " +
+          'Prérequis côté Google Cloud Console (identifiants OAuth du client) : déclarer ' +
+          redirectUri() +
+          ' comme "Authorized redirect URI".',
       });
-    }
-  );
-
-  server.tool(
-    'google_auth_callback',
-    'Échanger le code OAuth2 contre un refresh token',
-    {
-      code: z.string().describe('Code d\'authentification Google (depuis l\'URL de redirection)'),
-    },
-    async ({ code }) => {
-      if (!_pkceVerifier) {
-        return ok({ error: 'Appelle google_auth_url d\'abord pour initialiser PKCE' });
-      }
-
-      const clientId = process.env.GOOGLE_CLIENT_ID;
-      const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-
-      if (!clientId || !clientSecret) {
-        return ok({ error: 'GOOGLE_CLIENT_ID ou GOOGLE_CLIENT_SECRET manquante' });
-      }
-
-      try {
-        const res = await fetch(TOKEN_ENDPOINT, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            grant_type: 'authorization_code',
-            code,
-            client_id: clientId,
-            client_secret: clientSecret,
-            redirect_uri: 'http://localhost',
-            code_verifier: _pkceVerifier,
-          }),
-        });
-
-        const data = await res.json();
-        if (!data.refresh_token) {
-          return ok({ error: `Token exchange échouée: ${JSON.stringify(data)}` });
-        }
-
-        storeRefreshToken(data.refresh_token);
-
-        _token = null;
-        _tokenExpiry = 0;
-        _pkceVerifier = null;
-
-        const profile = await gapi(`${GMAIL_API}/users/me/profile`);
-        return ok({
-          status: 'Auth OK',
-          emailAddress: profile.emailAddress,
-          message: 'Refresh token sauvegardé (data/google_token.json) et credentials valides!',
-        });
-      } catch (e) {
-        _pkceVerifier = null;
-        return ok({ error: `Callback échouée: ${e.message}` });
-      }
     }
   );
 
@@ -496,4 +493,50 @@ function registerGoogleTools(server) {
   );
 }
 
-module.exports = { registerGoogleTools };
+async function handleGoogleRedirect(req, res) {
+  const { code, state, error, error_description } = req.query;
+
+  if (error) {
+    res.status(400).type('html').send(
+      renderResultPage({
+        success: false,
+        title: '❌ Autorisation refusée',
+        message: error_description || String(error),
+      })
+    );
+    return;
+  }
+
+  if (!state || state !== _pendingState) {
+    res.status(400).type('html').send(
+      renderResultPage({
+        success: false,
+        title: '❌ State invalide',
+        message: "Le paramètre state ne correspond pas à une demande d'autorisation en cours. Relance google_auth_url et réessaie.",
+      })
+    );
+    return;
+  }
+
+  try {
+    await exchangeCodeForToken(code);
+    _pendingState = null;
+    res.status(200).type('html').send(
+      renderResultPage({
+        success: true,
+        title: '✅ Authentification Google réussie',
+        message: 'Tu peux fermer cet onglet et revenir au chat. Vérifie avec google_auth.',
+      })
+    );
+  } catch (e) {
+    res.status(500).type('html').send(
+      renderResultPage({
+        success: false,
+        title: "❌ Échec de l'authentification",
+        message: e.message,
+      })
+    );
+  }
+}
+
+module.exports = { registerGoogleTools, handleGoogleRedirect };

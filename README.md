@@ -8,8 +8,8 @@ Serveur MCP (Model Context Protocol) exposé en HTTP distant, protégé par OAut
 |---|---|
 | GitHub | `github_auth`, `github_repos`, `github_issues`, `github_issue_get`, `github_issue_create`, `github_issue_comment`, `github_file` |
 | Microsoft 365 / Graph | `m365_auth`, `m365_mail_folders`, `m365_mail_folder_exists`, `m365_mail_folder_create`, `m365_mail_list`, `m365_mail_get`, `m365_mail_move`, `m365_mail_delete`, `m365_calendar`, `m365_contacts`, `m365_todo_lists`, `m365_todo_tasks`, `m365_todo_task_create`, `m365_todo_task_update`, `m365_todo_task_delete` |
-| Google | `google_auth`, `google_auth_url`, `google_auth_callback`, `google_contacts`, `google_mail_profile`, `google_mail_list`, `google_mail_get`, `google_calendar_list`, `google_calendar_events` |
-| Facebook / Meta | `facebook_auth`, `facebook_auth_url`, `facebook_auth_callback`, `facebook_profile`, `facebook_posts`, `facebook_pages`, `facebook_page_feed`, `facebook_page_post`, `facebook_page_photo`, `facebook_page_post_update`, `facebook_page_post_delete`, `facebook_page_comments`, `facebook_page_comment_reply`, `facebook_page_insights` |
+| Google | `google_auth`, `google_auth_url`, `google_contacts`, `google_mail_profile`, `google_mail_list`, `google_mail_get`, `google_calendar_list`, `google_calendar_events` |
+| Facebook / Meta | `facebook_auth`, `facebook_auth_url`, `facebook_profile`, `facebook_posts`, `facebook_pages`, `facebook_page_feed`, `facebook_page_post`, `facebook_page_photo`, `facebook_page_post_update`, `facebook_page_post_delete`, `facebook_page_comments`, `facebook_page_comment_reply`, `facebook_page_insights` |
 | LinkedIn | `linkedin_auth`, `linkedin_auth_url`, `linkedin_profile`, `linkedin_post_create` |
 | OVH | `ovh_auth`, `ovh_list_domains`, `ovh_domain_info`, `ovh_list_dns_records`, `ovh_get_dns_record` |
 | o2switch (cPanel) | `o2switch_auth`, `o2switch_email_list`, `o2switch_email_create`, `o2switch_email_delete`, `o2switch_email_forwarders`, `o2switch_mailing_lists`, `o2switch_ftp_list`, `o2switch_ftp_create`, `o2switch_ftp_delete`, `o2switch_db_list`, `o2switch_db_create`, `o2switch_db_users`, `o2switch_db_user_create`, `o2switch_domains`, `o2switch_subdomain_list`, `o2switch_subdomain_create`, `o2switch_subdomain_delete`, `o2switch_dns_zone`, `o2switch_ssl_list`, `o2switch_ssl_autossl`, `o2switch_git_repos`, `o2switch_php_version`, `o2switch_nodejs_apps`, `o2switch_apps_list` |
@@ -61,8 +61,8 @@ pm2 start ecosystem.config.js
 | `OVH_MAIN_APP_KEY`, `OVH_MAIN_APP_SECRET`, `OVH_MAIN_CONSUMER_KEY` | API OVH | non |
 | `O2SWITCH_HOST`, `O2SWITCH_API_USER`, `O2SWITCH_API_TOKEN`, `O2SWITCH_PASSWORD` | cPanel o2switch | non |
 | `STEAM_API_KEY`, `STEAM_ID` | Steam Web API | non |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` | OAuth2 Google (Gmail, Calendar, Contacts) | non |
-| `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `FACEBOOK_USER_TOKEN`, `FACEBOOK_API_VERSION` | Facebook/Meta Graph (compte perso en lecture, gestion des Pages) — token de bootstrap via Graph API Explorer puis `facebook_auth_callback` (stocké dans `data/facebook_token.json`) | non |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` | OAuth2 Google (Gmail, Calendar, Contacts) — auth via `google_auth_url` ; l'échange du code se termine automatiquement côté serveur sur `MCP_PUBLIC_URL/redirect/google` (pas de copier-coller), refresh token stocké dans `data/google_token.json` | non |
+| `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `FACEBOOK_USER_TOKEN`, `FACEBOOK_API_VERSION` | Facebook/Meta Graph (compte perso en lecture, gestion des Pages) — auth via `facebook_auth_url` ; l'échange du code se termine automatiquement côté serveur sur `MCP_PUBLIC_URL/redirect/facebook` (pas de copier-coller), token stocké dans `data/facebook_token.json` | non |
 | `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_API_VERSION` | LinkedIn (profil perso en lecture, publication de posts) — auth via `linkedin_auth_url` ; l'échange du code se termine automatiquement côté serveur sur `MCP_PUBLIC_URL/redirect/linkedin` (pas de copier-coller), token stocké dans `data/linkedin_token.json` | non |
 | `NEO_ENT_URL`, `EDUCONNECT_LOGIN`, `EDUCONNECT_PASSWORD`, `PRONOTE_QR_PIN` | ENT scolaire NEO + Pronote (EduConnect partagé) | non |
 | `PRIM_API_KEY` | API PRIM/IDFM transport | non |

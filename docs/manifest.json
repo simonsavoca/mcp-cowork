@@ -165,7 +165,7 @@
     "google_refresh_token": {
       "type": "string",
       "title": "Google — Refresh Token",
-      "description": "Refresh token OAuth2 Google (obtenu via google_auth_url / google_auth_callback)",
+      "description": "Refresh token OAuth2 Google (obtenu via google_auth_url — échange automatique côté serveur)",
       "sensitive": true,
       "required": false
     },

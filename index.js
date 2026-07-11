@@ -13,6 +13,8 @@ const { registerStatusRoute } = require("./modules/status");
 const { registerPrivacyRoutes } = require("./modules/privacy");
 const { registerOAuthRedirectHandler, registerOAuthRedirectRoute } = require("./modules/oauthRedirect");
 const { handleLinkedinRedirect } = require("./modules/linkedin");
+const { handleGoogleRedirect } = require("./modules/google");
+const { handleFacebookRedirect } = require("./modules/facebook");
 const { createServer } = require("./modules/registry");
 
 const PUBLIC_URL = process.env.MCP_PUBLIC_URL;
@@ -127,6 +129,8 @@ registerPrivacyRoutes(app);
 // y est redirigé directement par le fournisseur après consentement, sans cookie francis_gate.
 // La protection vient du paramètre state anti-CSRF + du client_secret détenu par le serveur.
 registerOAuthRedirectHandler("linkedin", handleLinkedinRedirect);
+registerOAuthRedirectHandler("google", handleGoogleRedirect);
+registerOAuthRedirectHandler("facebook", handleFacebookRedirect);
 registerOAuthRedirectRoute(app);
 
 app.listen(PORT, () => {

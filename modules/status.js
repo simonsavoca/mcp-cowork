@@ -16,13 +16,13 @@ const MODULES = [
   },
   {
     name: "Google",
-    tools: ["google_auth", "google_auth_url", "google_auth_callback", "google_contacts", "google_mail_profile", "google_mail_list", "google_mail_get", "google_calendar_list", "google_calendar_events", "google_calendar_event_create", "google_calendar_event_update", "google_calendar_event_delete"],
+    tools: ["google_auth", "google_auth_url", "google_contacts", "google_mail_profile", "google_mail_list", "google_mail_get", "google_calendar_list", "google_calendar_events", "google_calendar_event_create", "google_calendar_event_update", "google_calendar_event_delete"],
     requiredEnv: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
     optionalEnv: ["GOOGLE_REFRESH_TOKEN"],
   },
   {
     name: "Facebook / Meta",
-    tools: ["facebook_auth", "facebook_auth_url", "facebook_auth_callback", "facebook_profile", "facebook_posts", "facebook_pages", "facebook_page_feed", "facebook_page_post", "facebook_page_photo", "facebook_page_post_update", "facebook_page_post_delete", "facebook_page_comments", "facebook_page_comment_reply", "facebook_page_insights"],
+    tools: ["facebook_auth", "facebook_auth_url", "facebook_profile", "facebook_posts", "facebook_pages", "facebook_page_feed", "facebook_page_post", "facebook_page_photo", "facebook_page_post_update", "facebook_page_post_delete", "facebook_page_comments", "facebook_page_comment_reply", "facebook_page_insights"],
     requiredEnv: ["FACEBOOK_APP_ID", "FACEBOOK_APP_SECRET"],
     optionalEnv: ["FACEBOOK_USER_TOKEN", "FACEBOOK_API_VERSION"],
     privacy: "facebook",

@@ -1,6 +1,8 @@
 const { z } = require('zod');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
+const { renderResultPage } = require('./oauthRedirect');
 
 const FB_API_VERSION = process.env.FACEBOOK_API_VERSION || 'v21.0';
 const GRAPH = `https://graph.facebook.com/${FB_API_VERSION}`;
@@ -23,6 +25,12 @@ const FB_SCOPES = [
 
 const TOKEN_STORE_PATH = path.join(__dirname, '..', 'data', 'facebook_token.json');
 
+let _pendingState = null;
+
+function redirectUri() {
+  return new URL('/redirect/facebook', process.env.MCP_PUBLIC_URL).toString();
+}
+
 // Le user token longue durée (~60j) et les Page tokens (non-expirants) sont persistés
 // dans data/facebook_token.json (gitignoré comme google_token.json). FACEBOOK_USER_TOKEN
 // sert uniquement de bootstrap initial si le fichier n'existe pas encore.
@@ -43,13 +51,13 @@ function getUserToken() {
   const store = loadStore();
   const token = store.user_token || process.env.FACEBOOK_USER_TOKEN;
   if (!token) {
-    throw new Error('Aucun token Facebook — lance facebook_auth_url puis facebook_auth_callback');
+    throw new Error('Aucun token Facebook — lance facebook_auth_url');
   }
   return token;
 }
 
 async function fbapi(pathOrUrl, { token, method = 'GET', params = {} } = {}) {
-  if (!token) throw new Error('Token manquant — bootstrap via facebook_auth_callback');
+  if (!token) throw new Error('Token manquant — lance facebook_auth_url');
 
   const base = pathOrUrl.startsWith('http')
     ? pathOrUrl
@@ -90,7 +98,7 @@ async function resolvePageToken(idOrName) {
 
   if (!page || !page.access_token) {
     const userToken = store.user_token || process.env.FACEBOOK_USER_TOKEN;
-    if (!userToken) throw new Error('Aucun token utilisateur — bootstrap via facebook_auth_callback');
+    if (!userToken) throw new Error('Aucun token utilisateur — lance facebook_auth_url');
     const data = await fbapi('/me/accounts', {
       token: userToken,
       params: { fields: 'id,name,access_token,tasks', limit: 100 },
@@ -114,6 +122,62 @@ function ok(obj) {
   };
 }
 
+// Échange le code d'autorisation contre un token court terme, puis contre un token longue
+// durée (~60j, fb_exchange_token) et récupère les Page tokens. Persisté dans
+// data/facebook_token.json. Utilisé par le handler de redirection automatique
+// (handleFacebookRedirect).
+async function exchangeCodeForLongLivedToken(code) {
+  const appId = process.env.FACEBOOK_APP_ID;
+  const appSecret = process.env.FACEBOOK_APP_SECRET;
+  if (!appId || !appSecret) throw new Error('FACEBOOK_APP_ID ou FACEBOOK_APP_SECRET manquante');
+
+  // fbapi() exige un token existant (access_token en query) ; ici on échange le code contre
+  // le tout premier token utilisateur, donc appel direct sans passer par fbapi().
+  const exchangeUrl = new URL(`${GRAPH}/oauth/access_token`);
+  exchangeUrl.searchParams.set('client_id', appId);
+  exchangeUrl.searchParams.set('client_secret', appSecret);
+  exchangeUrl.searchParams.set('redirect_uri', redirectUri());
+  exchangeUrl.searchParams.set('code', code);
+  const exchangeRes = await fetch(exchangeUrl);
+  const exchangeText = await exchangeRes.text();
+  if (!exchangeRes.ok) throw new Error(`Facebook API ${exchangeRes.status}: ${exchangeText}`);
+  const shortLived = JSON.parse(exchangeText);
+
+  const shortToken = shortLived.access_token;
+  if (!shortToken) throw new Error(`Échange code->token échoué: ${JSON.stringify(shortLived)}`);
+
+  const exch = await fbapi('/oauth/access_token', {
+    token: shortToken,
+    params: {
+      grant_type: 'fb_exchange_token',
+      client_id: appId,
+      client_secret: appSecret,
+      fb_exchange_token: shortToken,
+    },
+  });
+
+  const longToken = exch.access_token;
+  if (!longToken) throw new Error(`Échange long terme échoué: ${JSON.stringify(exch)}`);
+
+  const expiresIn = Number(exch.expires_in) || 60 * 24 * 3600; // ~60j si non fourni
+  const store = { user_token: longToken, user_token_expiry: Date.now() + expiresIn * 1000, pages: [] };
+
+  const accounts = await fbapi('/me/accounts', {
+    token: longToken,
+    params: { fields: 'id,name,access_token,tasks', limit: 100 },
+  });
+  store.pages = (accounts.data || []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    access_token: p.access_token,
+    tasks: p.tasks,
+  }));
+  saveStore(store);
+
+  const me = await fbapi('/me', { token: longToken, params: { fields: 'id,name' } });
+  return { me, store };
+}
+
 function registerFacebookTools(server) {
   // --- Auth ---
 
@@ -127,7 +191,7 @@ function registerFacebookTools(server) {
 
       const store = loadStore();
       const token = store.user_token || process.env.FACEBOOK_USER_TOKEN;
-      if (!token) return ok({ error: 'Aucun token — lance facebook_auth_url puis facebook_auth_callback' });
+      if (!token) return ok({ error: 'Aucun token — lance facebook_auth_url' });
 
       try {
         const me = await fbapi('/me', { token, params: { fields: 'id,name' } });
@@ -148,84 +212,32 @@ function registerFacebookTools(server) {
 
   server.tool(
     'facebook_auth_url',
-    'Instructions + URL pour obtenir un token Facebook (via Graph API Explorer, méthode recommandée)',
+    "Génère l'URL d'autorisation Facebook — l'authentification se termine automatiquement côté serveur (redirection), pas besoin de revenir dans le chat",
     {},
     async () => {
       const appId = process.env.FACEBOOK_APP_ID;
       if (!appId) return ok({ error: 'FACEBOOK_APP_ID manquante' });
+      if (!process.env.MCP_PUBLIC_URL) return ok({ error: 'MCP_PUBLIC_URL manquante' });
 
-      const scopes = FB_SCOPES.join(',');
-      const explorer = `https://developers.facebook.com/tools/explorer/?method=GET&path=me&version=${FB_API_VERSION}`;
-      const dialog = `${DIALOG}?${new URLSearchParams({
+      const state = crypto.randomBytes(16).toString('hex');
+      _pendingState = state;
+
+      const params = new URLSearchParams({
         client_id: appId,
-        redirect_uri: 'https://www.facebook.com/connect/login_success.html',
-        response_type: 'token',
-        scope: scopes,
-      }).toString()}`;
+        redirect_uri: redirectUri(),
+        response_type: 'code',
+        scope: FB_SCOPES.join(','),
+        state,
+      });
 
       return ok({
-        methode_recommandee: 'Graph API Explorer',
-        explorer_url: explorer,
-        scopes_a_cocher: scopes,
-        dialog_url_alternative: dialog,
+        url: `${DIALOG}?${params.toString()}`,
         message:
-          'Recommandé : ouvre explorer_url, sélectionne ton app, coche les scopes ci-dessus, clique "Generate Access Token", autorise, puis copie le token et appelle facebook_auth_callback (paramètre token). ' +
-          "Alternative : ouvre dialog_url_alternative, autorise, et récupère le access_token dans l'URL de redirection (après #access_token=).",
+          "Ouvre cette URL, connecte-toi et autorise l'app. L'authentification se termine automatiquement (redirection serveur vers MCP_PUBLIC_URL/redirect/facebook) — inutile de copier un token. Vérifie ensuite avec facebook_auth. " +
+          'Prérequis côté Meta for Developers (produit "Facebook Login", mode développement, self-serve, sans App Review) : déclarer ' +
+          redirectUri() +
+          ' dans "Valid OAuth Redirect URIs".',
       });
-    }
-  );
-
-  server.tool(
-    'facebook_auth_callback',
-    'Échange un token utilisateur Facebook en token longue durée (~60j) et récupère les Page tokens',
-    {
-      token: z.string().describe('User Access Token copié depuis le Graph API Explorer'),
-    },
-    async ({ token }) => {
-      const appId = process.env.FACEBOOK_APP_ID;
-      const appSecret = process.env.FACEBOOK_APP_SECRET;
-      if (!appId || !appSecret) return ok({ error: 'FACEBOOK_APP_ID ou FACEBOOK_APP_SECRET manquante' });
-
-      try {
-        const exch = await fbapi('/oauth/access_token', {
-          token,
-          params: {
-            grant_type: 'fb_exchange_token',
-            client_id: appId,
-            client_secret: appSecret,
-            fb_exchange_token: token,
-          },
-        });
-
-        const longToken = exch.access_token;
-        if (!longToken) return ok({ error: `Échange échoué: ${JSON.stringify(exch)}` });
-
-        const expiresIn = Number(exch.expires_in) || 60 * 24 * 3600; // ~60j si non fourni
-        const store = { user_token: longToken, user_token_expiry: Date.now() + expiresIn * 1000, pages: [] };
-
-        const accounts = await fbapi('/me/accounts', {
-          token: longToken,
-          params: { fields: 'id,name,access_token,tasks', limit: 100 },
-        });
-        store.pages = (accounts.data || []).map((p) => ({
-          id: p.id,
-          name: p.name,
-          access_token: p.access_token,
-          tasks: p.tasks,
-        }));
-        saveStore(store);
-
-        const me = await fbapi('/me', { token: longToken, params: { fields: 'id,name' } });
-        return ok({
-          status: 'Auth OK',
-          user: me,
-          user_token_expiry: new Date(store.user_token_expiry).toISOString(),
-          pages: store.pages.map((p) => ({ id: p.id, name: p.name })),
-          message: 'Token longue durée + Page tokens sauvegardés (data/facebook_token.json).',
-        });
-      } catch (e) {
-        return ok({ error: `Callback échouée: ${e.message}` });
-      }
     }
   );
 
@@ -421,4 +433,50 @@ function registerFacebookTools(server) {
   );
 }
 
-module.exports = { registerFacebookTools };
+async function handleFacebookRedirect(req, res) {
+  const { code, state, error, error_description } = req.query;
+
+  if (error) {
+    res.status(400).type('html').send(
+      renderResultPage({
+        success: false,
+        title: '❌ Autorisation refusée',
+        message: error_description || String(error),
+      })
+    );
+    return;
+  }
+
+  if (!state || state !== _pendingState) {
+    res.status(400).type('html').send(
+      renderResultPage({
+        success: false,
+        title: '❌ State invalide',
+        message: "Le paramètre state ne correspond pas à une demande d'autorisation en cours. Relance facebook_auth_url et réessaie.",
+      })
+    );
+    return;
+  }
+
+  try {
+    await exchangeCodeForLongLivedToken(code);
+    _pendingState = null;
+    res.status(200).type('html').send(
+      renderResultPage({
+        success: true,
+        title: '✅ Authentification Facebook réussie',
+        message: 'Tu peux fermer cet onglet et revenir au chat. Vérifie avec facebook_auth.',
+      })
+    );
+  } catch (e) {
+    res.status(500).type('html').send(
+      renderResultPage({
+        success: false,
+        title: "❌ Échec de l'authentification",
+        message: e.message,
+      })
+    );
+  }
+}
+
+module.exports = { registerFacebookTools, handleFacebookRedirect };
