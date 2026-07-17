@@ -11,7 +11,7 @@ const MODULES = [
   },
   {
     name: "Microsoft 365 / Graph",
-    tools: ["m365_auth", "m365_mail_folders", "m365_mail_list", "m365_mail_get", "m365_mail_move", "m365_mail_delete", "m365_calendar", "m365_contacts", "m365_todo_lists", "m365_todo_tasks", "m365_todo_task_create", "m365_todo_task_update", "m365_todo_task_delete"],
+    tools: ["m365_auth", "m365_mail_folders", "m365_mail_folder_exists", "m365_mail_folder_create", "m365_mail_list", "m365_mail_get", "m365_mail_move", "m365_mail_delete", "m365_calendar", "m365_contacts", "m365_todo_lists", "m365_todo_tasks", "m365_todo_task_create", "m365_todo_task_update", "m365_todo_task_delete"],
     requiredEnv: ["M365_TENANT_ID", "M365_CLIENT_ID", "M365_CLIENT_SECRET"],
   },
   {

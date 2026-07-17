@@ -73,6 +73,15 @@ pm2 start ecosystem.config.js
 
 Toutes les intégrations sont optionnelles — sans leurs variables, les tools correspondants renvoient une erreur explicite au lieu de planter le serveur.
 
+## Tests
+
+```bash
+npm test   # suite de tests (node --test), aucune variable d'environnement requise
+npm run lint
+```
+
+La CI GitHub Actions (`.github/workflows/ci.yml`) exécute lint + tests sur chaque push et pull request.
+
 ## Exploitation (pm2)
 
 ```bash
